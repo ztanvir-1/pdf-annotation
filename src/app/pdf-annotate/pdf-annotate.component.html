@@ -1,0 +1,40 @@
+<div class="file-upload">
+  <div style="display: flex; align-items: center;">
+    <div>
+      <label for="file-input">Upload PDF:</label>
+      <input type="file" id="file-input" (change)="onFileSelected($event)" accept="application/pdf" />
+    </div>
+    <div>
+      <label for="font-size">Font Size:</label>
+      <input type="text" id="font-size" [(ngModel)]="this.fontsize" [disabled]="true" style="border: none; background-color: white;"/>
+    </div>
+    <div>
+      <label for="font-color">Font color:</label>
+      <input type="text" id="font-color" [(ngModel)]="this.fontColor" [disabled]="true" style="border: none; background-color: white;"/>
+    </div>
+  </div>
+  <button (click)="downloadModifiedPdf()">Download Modified PDF</button>
+</div>
+
+<!-- PDF Viewer (only display when a file is uploaded) -->
+<div *ngIf="pdfSrc" class="pdf-container">
+  <ngx-extended-pdf-viewer
+    [src]="pdfSrc"
+    useBrowserLocale="true"
+    [showToolbar]="true"
+    [showPresentationModeButton]="false"
+    [showBookModeButton]="false"
+    [showDownloadButton]="false"
+    [showPrintButton]="false"
+    [showRotateButton]="false"
+    [showOpenFileButton]="false"
+    [showHighlightEditor]="false"
+    [showDrawEditor]="false"
+    [showSecondaryToolbarButton]="false"
+    [showPageNumber]="false"
+    (annotationEditorEvent)="annotationEditorEvent('editor', $event)"
+    (annotationEditorModeChanged)="annotationLayerRendered('layer rendered', $event)"
+    (pdfLoaded)="pdfLoaded('pdf loaded event', $event)"
+    style="height: 100vh; width: 100%;"
+  ></ngx-extended-pdf-viewer>
+</div>
