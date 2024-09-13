@@ -141,7 +141,7 @@ export class PdfAnnotateComponent {
       page.drawText(annotation.text, {
         x:annotation.x,
         y: annotation.y, // Flip the y-coordinate to match PDF coordinate system
-        size: annotation.fontsize - 2,
+        size: annotation.fontsize,
         color: rgb(rgbColor.r/255, rgbColor.g/255, rgbColor.b/255),
       });
     }
@@ -168,7 +168,7 @@ export class PdfAnnotateComponent {
     const padding = parseInt(paddingTop, 10) || 0;
     const widthVal = parseInt(width, 10) || 0;
     const x = normalizedX * pageWidth + 2;
-    const y = (pageHeight - (normalizedY * pageHeight) - fontsize - 0.5 - (this.scaledHeight * heightVal) / 2);
+    const y = (pageHeight - (normalizedY * pageHeight) - fontsize - 1 - (this.scaledHeight * heightVal) / 2);
     return { x, y };
   }
 
