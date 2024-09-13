@@ -34,6 +34,9 @@ export class PdfAnnotateComponent {
   scaledHeight:number = 0;
   scaledWidth:number = 0;
   scale:number = 1;
+  x:number = 0 ;
+  y:number = 0 ;
+  id:string = "";
 
   constructor(private cdr:ChangeDetectorRef) {}
   // Handle file input change
@@ -84,6 +87,9 @@ export class PdfAnnotateComponent {
             this.scale = event.source.parent.viewport.scale;
           // Find the index of the annotation with the same id
           const index = this.annotations.findIndex(annotation => annotation.id === annotationId);
+          this.x = x;
+          this.y = y;
+          this.id = annotationId;
 
           if (index !== -1) {
             // If the annotation exists, update the existing object
@@ -140,8 +146,8 @@ export class PdfAnnotateComponent {
       const rgbColor = this.hexToRgb(annotation.fontColor);
       page.drawText(annotation.text, {
         x:annotation.x,
-        y: annotation.y, // Flip the y-coordinate to match PDF coordinate system
-        size: annotation.fontsize,
+        y: annotation.y,
+        size: annotation.fontsize -1 ,
         color: rgb(rgbColor.r/255, rgbColor.g/255, rgbColor.b/255),
       });
     }
@@ -168,7 +174,7 @@ export class PdfAnnotateComponent {
     const padding = parseInt(paddingTop, 10) || 0;
     const widthVal = parseInt(width, 10) || 0;
     const x = normalizedX * pageWidth + 2;
-    const y = (pageHeight - (normalizedY * pageHeight) - fontsize - 1 - (this.scaledHeight * heightVal) / 2);
+    const y = (pageHeight - (normalizedY * pageHeight) - fontsize - 0.5 - (this.scaledHeight * heightVal) / 2);
     return { x, y };
   }
 

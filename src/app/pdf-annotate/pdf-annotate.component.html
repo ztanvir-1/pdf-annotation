@@ -12,6 +12,9 @@
       <label for="font-color">Font color:</label>
       <input type="text" id="font-color" [(ngModel)]="this.fontColor" [disabled]="true" style="border: none; background-color: white;"/>
     </div>
+    <div>
+      <p> x: {{this.x}} y: {{this.y}} <br> id: {{this.id}}</p>
+    </div>
   </div>
   <button (click)="downloadModifiedPdf()">Download Modified PDF</button>
 </div>
