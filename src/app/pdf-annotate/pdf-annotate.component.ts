@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgxExtendedPdfViewerModule, NgxExtendedPdfViewerService, PDFDocumentProxy } from 'ngx-extended-pdf-viewer';
-import { PDFDocument, rgb } from 'pdf-lib'; // Import from pdf-lib
+import { PDFDocument, PDFPage, rgb } from 'pdf-lib'; // Import from pdf-lib
 
 interface annotations{
   x:number,
@@ -12,7 +12,9 @@ interface annotations{
   type:string,
   id:string,
   fontsize:number,
-  fontColor:string
+  fontColor:string,
+  logoMaxWidth:number,
+  logoMaxHeight:number,
 }
 
 @Component({
@@ -37,8 +39,15 @@ export class PdfAnnotateComponent {
   x:number = 0 ;
   y:number = 0 ;
   id:string = "";
+  selectedOption: string = '';
+  //public logoFilePath: string = 'assets/images/28267842_7.jpg'; // square
+  public logoFilePath: string = 'assets/images/rect.png'; // rectangle
+  //public logoFilePath: string = 'assets/images/circle.png'; // circle
 
-  constructor(private cdr:ChangeDetectorRef) {}
+  public logoMaxWidth: number = 100; // Default max width for the logo
+  public logoMaxHeight: number = 100; // Default max height for the logo
+
+  constructor(private cdr:ChangeDetectorRef, private pdfViewerService: NgxExtendedPdfViewerService) {}
   // Handle file input change
   onFileSelected(event: any): void {
     const file = event.target.files[0];
@@ -64,8 +73,8 @@ export class PdfAnnotateComponent {
 
     if(event.editorType === "FreeTextEditor"){
       if(event.value && event.source && event.source.x && event.source.y && (event.type == "moved" || event.type == "fontSizeChanged" || event.type == "commit" || event.type == "colorChanged")){
-        console.log("x", event.source.x);
-        console.log("y", event.source.y);
+        console.log("text x", event.source.x);
+        console.log("text y", event.source.y);
         if(event.source.pageDimensions && event.source.pageDimensions.length > 0){
           console.log("page width:", event.source.pageDimensions[0]);
           console.log("page height:", event.source.pageDimensions[1]);
@@ -93,16 +102,25 @@ export class PdfAnnotateComponent {
 
           if (index !== -1) {
             // If the annotation exists, update the existing object
-            this.annotations[index] = {
-              id: annotationId,
-              page: event.page,
-              x: x,
-              y: y,
-              text: 'Placed Text',
-              type: "text",
-              fontsize:this.fontsize,
-              fontColor:this.fontColor
-            };
+            // this.annotations[index] = {
+            //   id: annotationId,
+            //   page: event.page,
+            //   x: x,
+            //   y: y,
+            //   text: 'Placed Text',
+            //   type: type,
+            //   fontsize:this.fontsize,
+            //   fontColor:this.fontColor
+            // };
+
+            this.annotations[index].id = annotationId;
+            this.annotations[index].page = event.page;
+            this.annotations[index].x = x;
+            this.annotations[index].y = y;
+            this.annotations[index].text = 'Placed text';
+            // this.annotations[index].type = type;
+            this.annotations[index].fontsize = this.fontsize;
+            this.annotations[index].fontColor = this.fontColor;
           } else {
             // If it doesn't exist, add the new annotation to the array
             this.annotations.push({
@@ -110,17 +128,74 @@ export class PdfAnnotateComponent {
               page: event.page,
               x: x,
               y: y,
-              text: 'Placed Text',
-              type:"text",
+              text:'Placed text',
+              type:'text',
               fontsize:this.fontsize,
-              fontColor:this.fontColor
+              fontColor:this.fontColor,
+              logoMaxHeight:0,
+              logoMaxWidth: 0
             });
           }
-          if(event.source.hasOwnProperty('#Os'))
-            this.fontsize = event.source["#Os"];
         }
       }
 
+      if(event.type && event.type == "removed"){
+        this.annotations = this.annotations.filter(x=>x.id !== event.source.id)
+      }
+    }
+    else if (event.editorType === "StampEditor"){
+      if(event.value && event.source && event.source.x && event.source.y && (event.type == "moved" || event.type == "sizeChanged")){
+        console.log("logo x", event.source.x);
+        console.log("logo y", event.source.y);
+        if(event.source.pageDimensions && event.source.pageDimensions.length > 0){
+          console.log("page width:", event.source.pageDimensions[0]);
+          console.log("page height:", event.source.pageDimensions[1]);
+
+          const annotationId = event.source.id;
+          this.logoMaxWidth = event.source.width * event.source.pageDimensions[0];
+          this.logoMaxHeight = event.source.height * event.source.pageDimensions[1];
+          const { x, y } = this.convertToPixesCoordinatesForLogo(event.source.pageDimensions[0], event.source.pageDimensions[1], event.source.x, event.source.y, this.logoMaxHeight);
+
+          const index = this.annotations.findIndex(annotation => annotation.id === annotationId);
+          this.x = x;
+          this.y = y;
+          this.id = annotationId;
+          if (index !== -1) {
+            // If the annotation exists, update the existing object
+            // this.annotations[index] = {
+            //   id: annotationId,
+            //   page: event.page,
+            //   x: x,
+            //   y: y,
+            //   text: 'Placed Text',
+            //   type: type,
+            //   fontsize:this.fontsize,
+            //   fontColor:this.fontColor
+            // };
+
+            this.annotations[index].id = annotationId;
+            this.annotations[index].page = event.page;
+            this.annotations[index].x = x;
+            this.annotations[index].y = y;
+            this.annotations[index].logoMaxWidth = this.logoMaxWidth;
+            this.annotations[index].logoMaxHeight = this.logoMaxHeight;
+          } else {
+            // If it doesn't exist, add the new annotation to the array
+            this.annotations.push({
+              id: annotationId,
+              page: event.page,
+              x: x,
+              y: y,
+              text:'',
+              type:'logo',
+              fontsize:this.fontsize,
+              fontColor:this.fontColor,
+              logoMaxWidth: this.logoMaxWidth,
+              logoMaxHeight: this.logoMaxHeight
+            });
+          }
+        }
+      }
       if(event.type && event.type == "removed"){
         this.annotations = this.annotations.filter(x=>x.id !== event.source.id)
       }
@@ -143,13 +218,18 @@ export class PdfAnnotateComponent {
       const page = pdfDoc.getPage(annotation.page - 1); // Page is 0-indexed in pdf-lib
       // const width = page.getWidth();
       // const height = page.getHeight();
-      const rgbColor = this.hexToRgb(annotation.fontColor);
-      page.drawText(annotation.text, {
-        x:annotation.x,
-        y: annotation.y,
-        size: annotation.fontsize -1 ,
-        color: rgb(rgbColor.r/255, rgbColor.g/255, rgbColor.b/255),
-      });
+      if(annotation.type == "logo"){
+        await this.addLogoToPdf(pdfDoc, this.logoFilePath, page, annotation.x , annotation.y, annotation.logoMaxWidth, annotation.logoMaxHeight);
+      }
+      else{
+        const rgbColor = this.hexToRgb(annotation.fontColor);
+        page.drawText(annotation.text, {
+          x:annotation.x,
+          y: annotation.y,
+          size: annotation.fontsize -1 ,
+          color: rgb(rgbColor.r/255, rgbColor.g/255, rgbColor.b/255),
+        });
+      }
     }
 
     // Serialize the PDF and create a blob to download
@@ -168,16 +248,22 @@ export class PdfAnnotateComponent {
     console.log(this.scaledHeight * pageHeight);
     const textboxElement = document.querySelector(`#${id}`); // Example for selecting the annotation
     const height = window.getComputedStyle(textboxElement!).height;
+    const heightVal = parseInt(height, 10) || 0;
     const paddingTop = window.getComputedStyle(textboxElement!).paddingTop;
     const width = window.getComputedStyle(textboxElement!).paddingLeft;
-    const heightVal = parseInt(height, 10) || 0;
     const padding = parseInt(paddingTop, 10) || 0;
     const widthVal = parseInt(width, 10) || 0;
+
     const x = normalizedX * pageWidth + 2;
     const y = (pageHeight - (normalizedY * pageHeight) - fontsize - 0.5 - (this.scaledHeight * heightVal) / 2);
     return { x, y };
   }
 
+  convertToPixesCoordinatesForLogo(pageWidth: number, pageHeight: number, normalizedX: number, normalizedY: number, logoHeight:number){
+    const x = normalizedX * pageWidth;
+    const y = pageHeight - (normalizedY * pageHeight);
+    return { x, y };
+  }
   textLayerRendered(name:string, event:any){
     console.log("text layer rendered:", event);
   }
@@ -196,5 +282,81 @@ export class PdfAnnotateComponent {
     let b = bigint & 255;
 
     return { r, g, b };
+  }
+
+  onDropdownChange(event:any){
+
+  }
+
+  // Add logo to the PDF at specific coordinates with max width and height
+  async addLogoToPdf(
+    pdfDoc: PDFDocument,
+    logoPath: string,
+    page: PDFPage,
+    x: number,
+    y: number,
+    maxWidth: number,
+    maxHeight: number
+  ): Promise<void> {
+    const imageBytes = await fetch(logoPath).then(res => res.arrayBuffer()); // Load the image file
+
+    let image;
+    if (this.getImageTypeFromPath(logoPath) === "png") {
+      image = await pdfDoc.embedPng(imageBytes); // Embed PNG image
+    } else {
+      image = await pdfDoc.embedJpg(imageBytes); // Embed JPG image
+    }
+
+    // Get the original dimensions of the image
+    const { width, height } = image.scale(1);
+
+    // Calculate the aspect ratio
+    const aspectRatio = width / height;
+
+    // Initialize final dimensions
+    let finalWidth = maxWidth;
+    let finalHeight = maxHeight;
+
+    // Adjust dimensions to maintain aspect ratio
+    if (width > height) {
+      // If the image is wider than taller
+      finalWidth = Math.min(maxWidth, width);               // Scale width to maxWidth
+      finalHeight = finalWidth / aspectRatio;               // Adjust height to maintain aspect ratio
+      if (finalHeight > maxHeight) {
+        finalHeight = maxHeight;                            // If height exceeds maxHeight, adjust it
+        finalWidth = finalHeight * aspectRatio;             // Adjust width accordingly
+      }
+    } else {
+      // If the image is taller than wider
+      finalHeight = Math.min(maxHeight, height);            // Scale height to maxHeight
+      finalWidth = finalHeight * aspectRatio;               // Adjust width to maintain aspect ratio
+      if (finalWidth > maxWidth) {
+        finalWidth = maxWidth;                              // If width exceeds maxWidth, adjust it
+        finalHeight = finalWidth / aspectRatio;             // Adjust height accordingly
+      }
+    }
+
+    // Draw the logo image on the PDF
+    page.drawImage(image, {
+      x: x,
+      y: y - finalHeight,
+      width: finalWidth,
+      height: finalHeight
+    });
+  }
+
+
+  getImageTypeFromPath(filePath: string): string | null {
+    const extension = filePath.split('.').pop()?.toLowerCase();
+    if (extension === 'png') {
+      return 'png';
+    } else if (extension === 'jpg' || extension === 'jpeg') {
+      return 'jpeg';
+    }
+    return null;
+  }
+
+  onAttachmentLoaded(name:string, event:any){
+    console.log("on attachment loaded: ", event);
   }
 }

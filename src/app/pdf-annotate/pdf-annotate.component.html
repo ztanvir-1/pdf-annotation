@@ -1,8 +1,20 @@
 <div class="file-upload">
   <div style="display: flex; align-items: center;">
     <div>
-      <label for="file-input">Upload PDF:</label>
-      <input type="file" id="file-input" (change)="onFileSelected($event)" accept="application/pdf" />
+      <div style="margin-bottom:10px;">
+        <label for="file-input">Upload PDF:</label>
+        <input type="file" id="file-input" (change)="onFileSelected($event)" accept="application/pdf" />
+      </div>
+      <!-- <div>
+        <label for="custom-dropdown">Choose an option:</label>
+        <select id="custom-dropdown" [(ngModel)]="selectedOption">
+          <option value="logo">Logo</option>
+          <option value="text">text</option>
+        </select>
+      </div> -->
+      <div>
+        <a style="font-size: 12px;" href="assets/images/template_square.png" download="template_box.png">Download Bounding Box PNG For Logo</a>
+      </div>
     </div>
     <div>
       <label for="font-size">Font Size:</label>
@@ -39,8 +51,9 @@
     [showFirstAndLastPageButtons]="false"
     [showPreviousAndNextPageButtons]="false"
     [showPageLabel]="false"
+
     (annotationEditorEvent)="annotationEditorEvent('editor', $event)"
-    (annotationEditorModeChanged)="annotationLayerRendered('layer rendered', $event)"
+    (annotationLayerRendered)="annotationLayerRendered('layer rendered', $event)"
     (pdfLoaded)="pdfLoaded('pdf loaded event', $event)"
     style="height: 100vh; width: 100%;"
   ></ngx-extended-pdf-viewer>
