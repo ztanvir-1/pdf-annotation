@@ -40,8 +40,8 @@ export class PdfAnnotateComponent {
   y:number = 0 ;
   id:string = "";
   selectedOption: string = '';
-  //public logoFilePath: string = 'assets/images/28267842_7.jpg'; // square
-  public logoFilePath: string = 'assets/images/rect.png'; // rectangle
+  public logoFilePath: string = 'assets/images/28267842_7.jpg'; // square
+  //public logoFilePath: string = 'assets/images/rect.png'; // rectangle
   //public logoFilePath: string = 'assets/images/circle.png'; // circle
 
   public logoMaxWidth: number = 100; // Default max width for the logo
