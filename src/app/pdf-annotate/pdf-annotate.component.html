@@ -1,17 +1,10 @@
-<div class="file-upload">
+<!-- <div class="file-upload">
   <div style="display: flex; align-items: center;">
     <div>
       <div style="margin-bottom:10px;">
         <label for="file-input">Upload PDF:</label>
         <input type="file" id="file-input" (change)="onFileSelected($event)" accept="application/pdf" />
       </div>
-      <!-- <div>
-        <label for="custom-dropdown">Choose an option:</label>
-        <select id="custom-dropdown" [(ngModel)]="selectedOption">
-          <option value="logo">Logo</option>
-          <option value="text">text</option>
-        </select>
-      </div> -->
       <div>
         <a style="font-size: 12px;" href="assets/images/template_square.png" download="template_box.png">Download Bounding Box PNG For Logo</a>
       </div>
@@ -49,7 +42,6 @@
   <button (click)="downloadModifiedPdf()">Download Modified PDF</button>
 </div>
 
-<!-- PDF Viewer (only display when a file is uploaded) -->
 <div *ngIf="pdfSrc" class="pdf-container">
   <ngx-extended-pdf-viewer
     [src]="pdfSrc"
@@ -75,4 +67,84 @@
     (pdfLoaded)="pdfLoaded('pdf loaded event', $event)"
     style="height: 100vh; width: 100%;"
   ></ngx-extended-pdf-viewer>
+</div> -->
+
+
+<div class="flex h-screen">
+  <!-- PDF Viewer Container (70-75% width) -->
+  <div class="w-3/4 p-4 bg-gray-100">
+    <!-- Only display the PDF viewer when a file is uploaded -->
+    <div *ngIf="pdfSrc" class="pdf-container">
+      <ngx-extended-pdf-viewer
+        [src]="pdfSrc"
+        useBrowserLocale="true"
+        [showToolbar]="true"
+        [showPresentationModeButton]="false"
+        [showBookModeButton]="false"
+        [showDownloadButton]="false"
+        [showPrintButton]="false"
+        [showRotateButton]="false"
+        [showOpenFileButton]="false"
+        [showHighlightEditor]="false"
+        [showDrawEditor]="false"
+        [showSecondaryToolbarButton]="false"
+        [showPageNumber]="false"
+        [showFirstAndLastPageButtons]="false"
+        [showPreviousAndNextPageButtons]="false"
+        [showPageLabel]="false"
+        (annotationEditorEvent)="annotationEditorEvent('editor', $event)"
+        (annotationLayerRendered)="annotationLayerRendered('layer rendered', $event)"
+        (pdfLoaded)="pdfLoaded('pdf loaded event', $event)"
+        class="h-full w-full"
+      ></ngx-extended-pdf-viewer>
+    </div>
+  </div>
+
+  <!-- File Upload Side Panel (25-30% width) -->
+  <div class="w-1/4 bg-white p-4 border-l border-gray-200">
+    <div class="file-upload">
+      <div class="mb-4">
+        <label for="file-input" class="block font-semibold text-gray-700">Upload PDF:</label>
+        <input type="file" id="file-input" (change)="onFileSelected($event)" accept="application/pdf" class="mt-2 block w-full border border-gray-300 p-2 rounded" />
+      </div>
+
+      <div class="mb-4">
+        <a href="assets/images/template_square.png" download="template_box.png" class="text-sm text-blue-500 hover:underline">Download Bounding Box PNG For Logo</a>
+      </div>
+
+      <div class="mb-4">
+        <p class="font-semibold">Logo shape:</p>
+        <div>
+          <input type="radio" id="square" name="shape" [(ngModel)]="selectedShape" (ngModelChange)="onShapeChange($event)" value="square" />
+          <label for="square" class="ml-2">Square</label>
+        </div>
+        <div>
+          <input type="radio" id="circle" name="shape" [(ngModel)]="selectedShape" (ngModelChange)="onShapeChange($event)" value="circle" />
+          <label for="circle" class="ml-2">Circle</label>
+        </div>
+        <div>
+          <input type="radio" id="rectangle" name="shape" [(ngModel)]="selectedShape" (ngModelChange)="onShapeChange($event)" value="rectangle" />
+          <label for="rectangle" class="ml-2">Rectangle</label>
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label for="font-size" class="block font-semibold text-gray-700">Font Size:</label>
+        <input type="text" id="font-size" [(ngModel)]="this.fontsize" [disabled]="true" class="mt-2 block w-full border-none bg-white text-gray-700" />
+      </div>
+
+      <div class="mb-4">
+        <label for="font-color" class="block font-semibold text-gray-700">Font color:</label>
+        <input type="text" id="font-color" [(ngModel)]="this.fontColor" [disabled]="true" class="mt-2 block w-full border-none bg-white text-gray-700" />
+      </div>
+
+      <div class="mb-4">
+        <p>x: {{ this.x }} y: {{ this.y }}<br>id: {{ this.id }}</p>
+      </div>
+
+      <button (click)="downloadModifiedPdf()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+        Download Modified PDF
+      </button>
+    </div>
+  </div>
 </div>
