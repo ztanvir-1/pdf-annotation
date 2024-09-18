@@ -59,7 +59,7 @@ export class PdfAnnotateComponent {
         this.cdr.detectChanges();
       };
       try{
-        console.log("file name: ", file.fileName);
+        console.log("file name: ", file.name);
       }
       catch(e){
         console.log("error: ", e);
