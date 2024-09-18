@@ -108,8 +108,12 @@
         <input type="file" id="file-input" (change)="onFileSelected($event)" accept="application/pdf" class="mt-2 block w-full border border-gray-300 p-2 rounded" />
       </div>
 
+      <div>
+        <a href="https://grpl2018outlook-my.sharepoint.com/:f:/g/personal/shosking_globalrescue_com/EsJ-QGjwmzFBmynIuokIFLQB8nFFfnHfRVLZIOw0VgUC6w?e=2zTAUU" class="text-sm text-blue-500 hover:underline" title="Click here to access all PDFs">All PDFs</a>
+      </div>
+
       <div class="mb-4">
-        <a href="assets/images/template_square.png" download="template_box.png" class="text-sm text-blue-500 hover:underline">Download Bounding Box PNG For Logo</a>
+        <a href="assets/images/template_square.png" download="template_box.png" class="text-sm text-blue-500 hover:underline" title="Click here to download the box in which logo will be placed">Download Bounding Box PNG For Logo</a>
       </div>
 
       <div class="mb-4">
@@ -128,18 +132,27 @@
         </div>
       </div>
 
-      <div class="mb-4">
-        <label for="font-size" class="block font-semibold text-gray-700">Font Size:</label>
-        <input type="text" id="font-size" [(ngModel)]="this.fontsize" [disabled]="true" class="mt-2 block w-full border-none bg-white text-gray-700" />
-      </div>
+      <div style="max-height: 370px; overflow: auto;" class="mb-4">
+        <div *ngFor="let annotation of this.annotations" style="border: 1px solid;padding: 0 10px;" class="mb-4">
+          <div class="mb-4 mt-2">
+            <label for="font-size" class="block font-semibold text-gray-700">Font Size:</label>
+            <input type="text" id="font-size" [(ngModel)]="annotation.fontsize" [disabled]="true" class="mt-2 block w-full border-none bg-white text-gray-700" />
+          </div>
 
-      <div class="mb-4">
-        <label for="font-color" class="block font-semibold text-gray-700">Font color:</label>
-        <input type="text" id="font-color" [(ngModel)]="this.fontColor" [disabled]="true" class="mt-2 block w-full border-none bg-white text-gray-700" />
-      </div>
+          <div class="mb-4">
+            <label for="font-color" class="block font-semibold text-gray-700">Font color:</label>
+            <input type="text" id="font-color" [(ngModel)]="annotation.fontColor" [disabled]="true" class="mt-2 block w-full border-none bg-white text-gray-700" />
+          </div>
 
-      <div class="mb-4">
-        <p>x: {{ this.x }} y: {{ this.y }}<br>id: {{ this.id }}</p>
+          <div class="mb-4">
+            <label for="font-color" class="block font-semibold text-gray-700">Type: </label>
+            <input type="text" id="font-color" [(ngModel)]="annotation.type" [disabled]="true" class="mt-2 block w-full border-none bg-white text-gray-700" />
+          </div>
+
+          <div class="mb-4">
+            <p>x: {{ annotation.x }} y: {{ annotation.y }}<br>id: {{ annotation.id }}</p>
+          </div>
+        </div>
       </div>
 
       <button (click)="downloadModifiedPdf()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">

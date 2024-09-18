@@ -29,7 +29,7 @@ interface annotations{
 export class PdfAnnotateComponent{
   public pdfSrc: string | ArrayBuffer | null = null; // Initially, no PDF is loaded
   public pdfDocument: PDFDocumentProxy | null = null; // Store the PDF document
-  private annotations: annotations[] = []; // Store annotation data
+  annotations: annotations[] = []; // Store annotation data
   private selectedFile: File | null = null;
   fontsize:number = 12;
   fontColor:string = "#00000";
@@ -91,7 +91,7 @@ export class PdfAnnotateComponent{
   annotationEditorEvent(name:string, event:any){
     console.log('Annotation Editor Event:', event);
 
-    if(event.editorType === "FreeTextEditor"){
+    if(event.editorType === "FreeTextEditor" || (event.source && event.source.name && event.source.name == "freeTextEditor")){
       if(event.value && event.source && event.source.x && event.source.y && (event.type == "moved" || event.type == "fontSizeChanged" || event.type == "commit" || event.type == "colorChanged")){
         console.log("text x", event.source.x);
         console.log("text y", event.source.y);
@@ -164,7 +164,7 @@ export class PdfAnnotateComponent{
       }
     }
     else if (event.editorType === "StampEditor"){
-      if(event.value && event.source && event.source.x && event.source.y && (event.type == "moved" || event.type == "sizeChanged")){
+      if(event.value && event.source && (event.source.x!=null || event.source.x!=undefined)  && (event.source.y!=null || event.source.y!=undefined) && (event.type == "moved" || event.type == "sizeChanged")){
         console.log("logo x", event.source.x);
         console.log("logo y", event.source.y);
         if(event.source.pageDimensions && event.source.pageDimensions.length > 0){
