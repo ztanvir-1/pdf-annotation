@@ -15,6 +15,24 @@
       <div>
         <a style="font-size: 12px;" href="assets/images/template_square.png" download="template_box.png">Download Bounding Box PNG For Logo</a>
       </div>
+
+      <div>
+          <p>Logo shape:</p>
+          <div>
+            <input type="radio" id="square" name="shape" [(ngModel)]="selectedShape"  (ngModelChange)="onShapeChange($event)" value="square" />
+            <label for="square">Square</label>
+          </div>
+
+          <div>
+            <input type="radio" id="circle" name="shape" [(ngModel)]="selectedShape" (ngModelChange)="onShapeChange($event)" value="circle" />
+            <label for="circle">Circle</label>
+          </div>
+
+          <div>
+            <input type="radio" id="rectangle" name="shape" [(ngModel)]="selectedShape" (ngModelChange)="onShapeChange($event)" value="rectangle" />
+            <label for="rectangle">Rectangle</label>
+          </div>
+      </div>
     </div>
     <div>
       <label for="font-size">Font Size:</label>

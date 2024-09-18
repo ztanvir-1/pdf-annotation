@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgxExtendedPdfViewerModule, NgxExtendedPdfViewerService, PDFDocumentProxy } from 'ngx-extended-pdf-viewer';
 import { PDFDocument, PDFPage, rgb } from 'pdf-lib'; // Import from pdf-lib
@@ -26,7 +26,7 @@ interface annotations{
   templateUrl: './pdf-annotate.component.html',
   styleUrl: './pdf-annotate.component.css'
 })
-export class PdfAnnotateComponent {
+export class PdfAnnotateComponent{
   public pdfSrc: string | ArrayBuffer | null = null; // Initially, no PDF is loaded
   public pdfDocument: PDFDocumentProxy | null = null; // Store the PDF document
   private annotations: annotations[] = []; // Store annotation data
@@ -40,6 +40,7 @@ export class PdfAnnotateComponent {
   y:number = 0 ;
   id:string = "";
   selectedOption: string = '';
+  selectedShape: string = 'square'; // Default selection is 'square'
   public logoFilePath: string = 'assets/images/28267842_7.jpg'; // square
   //public logoFilePath: string = 'assets/images/rect.png'; // rectangle
   //public logoFilePath: string = 'assets/images/circle.png'; // circle
@@ -48,6 +49,19 @@ export class PdfAnnotateComponent {
   public logoMaxHeight: number = 100; // Default max height for the logo
 
   constructor(private cdr:ChangeDetectorRef, private pdfViewerService: NgxExtendedPdfViewerService) {}
+
+  onShapeChange(newShape: string): void {
+    this.selectedShape = newShape;
+
+    // Update the description based on the selected shape
+    if (newShape === 'square') {
+      this.logoFilePath = 'assets/images/28267842_7.jpg';
+    } else if (newShape === 'circle') {
+      this.logoFilePath = 'assets/images/circle.png';
+    } else if (newShape === 'rectangle') {
+      this.logoFilePath = 'assets/images/rect.png';
+    }
+  }
   // Handle file input change
   onFileSelected(event: any): void {
     const file = event.target.files[0];
