@@ -57,6 +57,7 @@ export class PdfAnnotateComponent {
       reader.onload = (e: any) => {
         this.pdfSrc = e.target.result; // Set the PDF source to the file's ArrayBuffer
         this.cdr.detectChanges();
+        console.log("file name: ", file.fileName);
       };
       reader.readAsArrayBuffer(file); // Read the PDF file as ArrayBuffer
     } else {
