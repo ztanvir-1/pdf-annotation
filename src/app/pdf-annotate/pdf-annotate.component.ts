@@ -1,8 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component} from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgxExtendedPdfViewerModule, NgxExtendedPdfViewerService, PDFDocumentProxy } from 'ngx-extended-pdf-viewer';
-import { PDFDocument, PDFPage, rgb } from 'pdf-lib'; // Import from pdf-lib
+import { PDFDocument, PDFPage, StandardFonts, rgb } from 'pdf-lib'; // Import from pdf-lib
+import { NoteRpCode } from './models/noteRpCode';
 
 interface annotations{
   x:number,
@@ -15,6 +17,8 @@ interface annotations{
   fontColor:string,
   logoMaxWidth:number,
   logoMaxHeight:number,
+  alignment:string,
+  availableWidth:number
 }
 
 @Component({
@@ -26,7 +30,7 @@ interface annotations{
   templateUrl: './pdf-annotate.component.html',
   styleUrl: './pdf-annotate.component.css'
 })
-export class PdfAnnotateComponent{
+export class PdfAnnotateComponent implements OnInit{
   public pdfSrc: string | ArrayBuffer | null = null; // Initially, no PDF is loaded
   public pdfDocument: PDFDocumentProxy | null = null; // Store the PDF document
   annotations: annotations[] = []; // Store annotation data
@@ -47,8 +51,24 @@ export class PdfAnnotateComponent{
 
   public logoMaxWidth: number = 100; // Default max width for the logo
   public logoMaxHeight: number = 100; // Default max height for the logo
+  alignment:string = "left";
+  rpCode:string = "";
+  annotationDetails:NoteRpCode = new NoteRpCode();
 
-  constructor(private cdr:ChangeDetectorRef, private pdfViewerService: NgxExtendedPdfViewerService) {}
+  constructor(private cdr:ChangeDetectorRef, private pdfViewerService: NgxExtendedPdfViewerService, private httpClient:HttpClient) {}
+
+  ngOnInit(){
+    // this.getLogoFromRpCode();
+  }
+
+  async getLogoFromRpCode(){
+    this.httpClient.get<NoteRpCode>('https://localhost:44327/api/crm/GetLogoAnnotationByRpCodeName?rpCodeName=' + this.rpCode).subscribe(res=>{
+      if(res){
+        this.annotationDetails = res;
+        this.downloadModifiedPdf();
+      }
+    });
+  }
 
   onShapeChange(newShape: string): void {
     this.selectedShape = newShape;
@@ -62,6 +82,12 @@ export class PdfAnnotateComponent{
       this.logoFilePath = 'assets/images/rect.png';
     }
   }
+
+  onTextAlignChange(alignment:string){
+    // Update the description based on the selected shape
+    // this.alignment = alignment;
+  }
+
   // Handle file input change
   onFileSelected(event: any): void {
     const file = event.target.files[0];
@@ -119,7 +145,7 @@ export class PdfAnnotateComponent{
           this.x = x;
           this.y = y;
           this.id = annotationId;
-
+          const availableWidth = event.source.width * event.source.pageDimensions[0];
           if (index !== -1) {
             // If the annotation exists, update the existing object
             // this.annotations[index] = {
@@ -141,6 +167,8 @@ export class PdfAnnotateComponent{
             // this.annotations[index].type = type;
             this.annotations[index].fontsize = this.fontsize;
             this.annotations[index].fontColor = this.fontColor;
+            this.annotations[index].alignment = this.alignment;
+            this.annotations[index].availableWidth = availableWidth;
           } else {
             // If it doesn't exist, add the new annotation to the array
             this.annotations.push({
@@ -153,7 +181,9 @@ export class PdfAnnotateComponent{
               fontsize:this.fontsize,
               fontColor:this.fontColor,
               logoMaxHeight:0,
-              logoMaxWidth: 0
+              logoMaxWidth: 0,
+              alignment:this.alignment,
+              availableWidth: availableWidth
             });
           }
         }
@@ -199,6 +229,7 @@ export class PdfAnnotateComponent{
             this.annotations[index].y = y;
             this.annotations[index].logoMaxWidth = this.logoMaxWidth;
             this.annotations[index].logoMaxHeight = this.logoMaxHeight;
+            this.annotations[index].alignment = this.alignment;
           } else {
             // If it doesn't exist, add the new annotation to the array
             this.annotations.push({
@@ -211,7 +242,9 @@ export class PdfAnnotateComponent{
               fontsize:this.fontsize,
               fontColor:this.fontColor,
               logoMaxWidth: this.logoMaxWidth,
-              logoMaxHeight: this.logoMaxHeight
+              logoMaxHeight: this.logoMaxHeight,
+              alignment:this.alignment,
+              availableWidth: 0
             });
           }
         }
@@ -229,24 +262,47 @@ export class PdfAnnotateComponent{
       return;
     }
 
+    await this.getLogoFromRpCode();
     // Read the uploaded PDF file
     const fileBuffer = await this.selectedFile.arrayBuffer();
     const pdfDoc = await PDFDocument.load(fileBuffer);
+    const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
     // Modify the PDF by placing text on the specified coordinates
     for (const annotation of this.annotations) {
+      annotation.text = this.annotationDetails.partnerUrl;
+
       const page = pdfDoc.getPage(annotation.page - 1); // Page is 0-indexed in pdf-lib
       // const width = page.getWidth();
       // const height = page.getHeight();
+
       if(annotation.type == "logo"){
         await this.addLogoToPdf(pdfDoc, this.logoFilePath, page, annotation.x , annotation.y, annotation.logoMaxWidth, annotation.logoMaxHeight);
       }
       else{
         const rgbColor = this.hexToRgb(annotation.fontColor);
+         // Calculate text width for center alignment
+        const textWidth = helveticaFont.widthOfTextAtSize(annotation.text, annotation.fontsize);
+        const pageWidth = page.getWidth(); // Get the width of the current page
+        // Adjust the X coordinate to center-align the text
+        let alignedCoord = 0;
+
+        const availableWidth = annotation.availableWidth || page.getWidth();
+        let adjustedX = annotation.x; // Default left alignment
+
+        if (annotation.alignment === 'center') {
+          // Center-align the text relative to availableWidth and annotation.x
+          adjustedX = annotation.x + (availableWidth - textWidth) / 2;
+        } else if (annotation.alignment === 'right') {
+          // Right-align the text relative to availableWidth and annotation.x
+          adjustedX = annotation.x + (availableWidth - textWidth);
+        }
+
         page.drawText(annotation.text, {
-          x:annotation.x,
+          x:adjustedX,
           y: annotation.y,
-          size: annotation.fontsize -1 ,
+          size: annotation.fontsize,
+          font:helveticaFont,
           color: rgb(rgbColor.r/255, rgbColor.g/255, rgbColor.b/255),
         });
       }
@@ -318,10 +374,11 @@ export class PdfAnnotateComponent{
     maxWidth: number,
     maxHeight: number
   ): Promise<void> {
-    const imageBytes = await fetch(logoPath).then(res => res.arrayBuffer()); // Load the image file
+    // const imageBytes = await fetch(logoPath).then(res => res.arrayBuffer()); // Load the image file
+    const imageBytes = this.base64ToArrayBuffer(this.annotationDetails.documentBody);
 
     let image;
-    if (this.getImageTypeFromPath(logoPath) === "png") {
+    if (this.getImageTypeFromPath(this.annotationDetails.fileName) === "png") {
       image = await pdfDoc.embedPng(imageBytes); // Embed PNG image
     } else {
       image = await pdfDoc.embedJpg(imageBytes); // Embed JPG image
@@ -378,5 +435,39 @@ export class PdfAnnotateComponent{
 
   onAttachmentLoaded(name:string, event:any){
     console.log("on attachment loaded: ", event);
+  }
+
+  async addImage(): Promise<void> {
+    if (!this.selectedFile) {
+      alert('Please upload a PDF file first.');
+      return;
+    }
+    await this.pdfViewerService.addImageToAnnotationLayer({
+      urlOrDataUrl: 'assets/images/template_square.png',
+      page: 0,
+      left: '0%',
+      bottom: '0%',
+      right: '0%',
+      top: '100%',
+      rotation: 0
+    });
+    this.pdfViewerService.switchAnnotationEdtorMode(13);
+  }
+
+  base64ToArrayBuffer(base64: string): ArrayBuffer {
+    // Decode the Base64 string into a binary string
+    const binaryString = window.atob(base64);
+
+    // Create a new ArrayBuffer with the same length as the binary string
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+
+    // Convert binary string to bytes (8-bit integers)
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // Return the ArrayBuffer
+    return bytes.buffer;
   }
 }
