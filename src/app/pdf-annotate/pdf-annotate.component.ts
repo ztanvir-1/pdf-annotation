@@ -262,7 +262,6 @@ export class PdfAnnotateComponent implements OnInit{
       return;
     }
 
-    await this.getLogoFromRpCode();
     // Read the uploaded PDF file
     const fileBuffer = await this.selectedFile.arrayBuffer();
     const pdfDoc = await PDFDocument.load(fileBuffer);
