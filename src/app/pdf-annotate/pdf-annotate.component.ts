@@ -54,6 +54,8 @@ export class PdfAnnotateComponent implements OnInit{
   alignment:string = "left";
   rpCode:string = "";
   annotationDetails:NoteRpCode = new NoteRpCode();
+  textValue = "";
+  isLoading: boolean = false;  // Flag to control loader visibility
 
   constructor(private cdr:ChangeDetectorRef, private pdfViewerService: NgxExtendedPdfViewerService, private httpClient:HttpClient) {}
 
@@ -62,12 +64,19 @@ export class PdfAnnotateComponent implements OnInit{
   }
 
   async getLogoFromRpCode(){
+    this.isLoading = true;
     this.httpClient.get<NoteRpCode>('https://localhost:44327/api/crm/GetLogoAnnotationByRpCodeName?rpCodeName=' + this.rpCode).subscribe(res=>{
       if(res){
+        this.isLoading = false;
         this.annotationDetails = res;
         this.downloadModifiedPdf();
       }
-    });
+    },
+    error=>{
+      console.error('Error fetching logo:', error);
+      this.isLoading =false;
+    }
+    );
   }
 
   onShapeChange(newShape: string): void {
@@ -86,6 +95,8 @@ export class PdfAnnotateComponent implements OnInit{
   onTextAlignChange(alignment:string){
     // Update the description based on the selected shape
     // this.alignment = alignment;
+    const test = this.pdfViewerService.getSerializedAnnotations();;
+
   }
 
   // Handle file input change
@@ -134,6 +145,9 @@ export class PdfAnnotateComponent implements OnInit{
             console.log("font-color changed to: ", this.fontColor);
           }
           const annotationId = event.source.id;
+          if ("moved" != event.type && event.type != "fontSizeChanged" && event.type != "colorChanged") {
+            this.textValue = event.value;
+          }
           const { x, y } = this.convertToPixelCoordinates(event.source.pageDimensions[0], event.source.pageDimensions[1], event.source.x, event.source.y, (this.fontsize), annotationId);
           // this.annotations.push({ id: event.source.id, page: event.page, x: x, y: y, text: 'Placed Text', type:"text" });
           this.scaledHeight = event.source.height ? event.source.height : 0;
@@ -163,7 +177,7 @@ export class PdfAnnotateComponent implements OnInit{
             this.annotations[index].page = event.page;
             this.annotations[index].x = x;
             this.annotations[index].y = y;
-            this.annotations[index].text = 'Placed text';
+            this.annotations[index].text = this.textValue;
             // this.annotations[index].type = type;
             this.annotations[index].fontsize = this.fontsize;
             this.annotations[index].fontColor = this.fontColor;
@@ -176,7 +190,7 @@ export class PdfAnnotateComponent implements OnInit{
               page: event.page,
               x: x,
               y: y,
-              text:'Placed text',
+              text:this.textValue,
               type:'text',
               fontsize:this.fontsize,
               fontColor:this.fontColor,
@@ -269,7 +283,9 @@ export class PdfAnnotateComponent implements OnInit{
 
     // Modify the PDF by placing text on the specified coordinates
     for (const annotation of this.annotations) {
-      annotation.text = this.annotationDetails.partnerUrl;
+      if ("url" === annotation.text) {
+        annotation.text = this.annotationDetails.partnerUrl;
+      }
 
       const page = pdfDoc.getPage(annotation.page - 1); // Page is 0-indexed in pdf-lib
       // const width = page.getWidth();
@@ -314,6 +330,7 @@ export class PdfAnnotateComponent implements OnInit{
     link.href = URL.createObjectURL(blob);
     link.download = 'modified.pdf';
     link.click();
+    this.isLoading =false;
   }
 
   // Convert normalized coordinates (0-1) to pixel coordinates
@@ -468,5 +485,46 @@ export class PdfAnnotateComponent implements OnInit{
 
     // Return the ArrayBuffer
     return bytes.buffer;
+  }
+  onOutlineLoaded(name:string, event:any){
+    console.log("on outline loaded: ", event);
+  }
+  onLayersEvent(name:string, event:any){
+    console.log("layers loaded: ", event);
+  }
+  thumbnailDrawn(name:string, event:any){
+    console.log("thumbnailDrawn loaded: ", event);
+  }
+  xfaLayerRendered(name:string, event:any){
+    console.log("xfaLayerRendered loaded: ", event);
+  }
+  annotationEditorLayerRendered(name:string, event:any){
+    console.log("annotationEditorLayerRendered loaded: ", event);
+  }
+
+  // Called when the annotation editor layer is rendered
+  onAnnotationEditorLayerRendered(event: any): void {
+    // Find all annotations and add click event listeners to them
+    const annotationsLayer = document.querySelectorAll('.annotationLayer .annotation');
+    annotationsLayer.forEach((annotation: any) => {
+      annotation.addEventListener('click', (clickEvent: MouseEvent) => {
+        this.onAnnotationClicked(annotation);
+      });
+    });
+  }
+
+  // Method to handle annotation click
+  onAnnotationClicked(annotation: HTMLElement): void {
+    console.log('Annotation clicked:', annotation);
+
+    // Trigger the annotationEditorEvent
+    const annotationId = annotation.getAttribute('data-id');
+    const event = { annotationId }; // You can include additional info here if needed
+    // this.annotationEditorEvent('editor', event);
+  }
+
+  public set editorFontSize(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const test = this.pdfViewerService.getSerializedAnnotations();
   }
 }
