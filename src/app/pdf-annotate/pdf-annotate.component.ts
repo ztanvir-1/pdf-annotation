@@ -18,7 +18,8 @@ interface annotations{
   logoMaxWidth:number,
   logoMaxHeight:number,
   alignment:string,
-  availableWidth:number
+  availableWidth:number,
+  availableHeight:number,
 }
 
 @Component({
@@ -143,7 +144,7 @@ export class PdfAnnotateComponent implements OnInit{
             console.log("font-color changed to: ", this.fontColor);
           }
           const annotationId = event.source.id;
-          if ("moved" != event.type && event.type != "fontSizeChanged" && event.type != "colorChanged") {
+          if ("moved" != event.type && event.type != "fontSizeChanged" && event.type != "colorChanged" && event.value) {
             this.textValue = event.value;
           }
           const { x, y } = this.convertToPixelCoordinates(event.source.pageDimensions[0], event.source.pageDimensions[1], event.source.x, event.source.y, (this.fontsize), annotationId);
@@ -158,6 +159,7 @@ export class PdfAnnotateComponent implements OnInit{
           this.y = y;
           this.id = annotationId;
           const availableWidth = event.source.width * event.source.pageDimensions[0];
+          const availableHeight = event.source.height * event.source.pageDimensions[1];
           if (index !== -1) {
             // If the annotation exists, update the existing object
             // this.annotations[index] = {
@@ -175,12 +177,16 @@ export class PdfAnnotateComponent implements OnInit{
             this.annotations[index].page = event.page;
             this.annotations[index].x = x;
             this.annotations[index].y = y;
-            this.annotations[index].text = this.textValue;
+            if ("moved" != event.type && event.type != "fontSizeChanged" && event.type != "colorChanged") {
+              this.annotations[index].text = this.textValue;
+            }
+            // this.annotations[index].text = this.textValue;
             // this.annotations[index].type = type;
             this.annotations[index].fontsize = this.fontsize;
             this.annotations[index].fontColor = this.fontColor;
             this.annotations[index].alignment = this.alignment;
             this.annotations[index].availableWidth = availableWidth;
+            this.annotations[index].availableHeight = availableHeight;
           } else {
             // If it doesn't exist, add the new annotation to the array
             this.annotations.push({
@@ -188,14 +194,15 @@ export class PdfAnnotateComponent implements OnInit{
               page: event.page,
               x: x,
               y: y,
-              text:this.textValue,
+              text:"moved" != event.type && event.type != "fontSizeChanged" && event.type != "colorChanged" ? this.textValue : "",
               type:'text',
               fontsize:this.fontsize,
               fontColor:this.fontColor,
               logoMaxHeight:0,
               logoMaxWidth: 0,
               alignment:this.alignment,
-              availableWidth: availableWidth
+              availableWidth: availableWidth,
+              availableHeight:availableHeight
             });
           }
         }
@@ -222,6 +229,8 @@ export class PdfAnnotateComponent implements OnInit{
           this.x = x;
           this.y = y;
           this.id = annotationId;
+          const availableWidth = event.source.width * event.source.pageDimensions[0];
+          const availableHeight = event.source.height * event.source.pageDimensions[1];
           if (index !== -1) {
             // If the annotation exists, update the existing object
             // this.annotations[index] = {
@@ -242,6 +251,8 @@ export class PdfAnnotateComponent implements OnInit{
             this.annotations[index].logoMaxWidth = this.logoMaxWidth;
             this.annotations[index].logoMaxHeight = this.logoMaxHeight;
             this.annotations[index].alignment = this.alignment;
+            this.annotations[index].availableWidth = availableWidth;
+            this.annotations[index].availableHeight = availableHeight;
           } else {
             // If it doesn't exist, add the new annotation to the array
             this.annotations.push({
@@ -256,7 +267,8 @@ export class PdfAnnotateComponent implements OnInit{
               logoMaxWidth: this.logoMaxWidth,
               logoMaxHeight: this.logoMaxHeight,
               alignment:this.alignment,
-              availableWidth: 0
+              availableWidth: availableWidth,
+              availableHeight:availableHeight
             });
           }
         }
@@ -281,7 +293,7 @@ export class PdfAnnotateComponent implements OnInit{
 
     // Modify the PDF by placing text on the specified coordinates
     for (const annotation of this.annotations) {
-      if ("url" === annotation.text.toLowerCase()) {
+      if ("<url>" === annotation.text.toLowerCase()) {
         annotation.text = this.annotationDetails.partnerUrl;
       }
 
@@ -290,7 +302,9 @@ export class PdfAnnotateComponent implements OnInit{
       // const height = page.getHeight();
 
       if(annotation.type == "logo"){
-        await this.addLogoToPdf(pdfDoc, this.logoFilePath, page, annotation.x , annotation.y, annotation.logoMaxWidth, annotation.logoMaxHeight);
+        const availableWidth = annotation.availableWidth || page.getWidth();
+        const availableHeight = annotation.availableHeight || page.getHeight();
+        await this.addLogoToPdf(pdfDoc, this.logoFilePath, page, annotation.x , annotation.y, annotation.logoMaxWidth, annotation.logoMaxHeight, availableWidth, availableHeight, annotation.alignment);
       }
       else{
         const rgbColor = this.hexToRgb(annotation.fontColor);
@@ -386,7 +400,10 @@ export class PdfAnnotateComponent implements OnInit{
     x: number,
     y: number,
     maxWidth: number,
-    maxHeight: number
+    maxHeight: number,
+    availableWidth:number,
+    availableHeight:number,
+    alignment:string
   ): Promise<void> {
     // const imageBytes = await fetch(logoPath).then(res => res.arrayBuffer()); // Load the image file
     const imageBytes = this.base64ToArrayBuffer(this.annotationDetails.documentBody);
@@ -427,9 +444,17 @@ export class PdfAnnotateComponent implements OnInit{
       }
     }
 
+    let adjustedX = x; // Default left alignment
+    if (alignment === 'center') {
+      // Center-align the text relative to availableWidth and annotation.x
+      adjustedX = x + (availableWidth - finalWidth) / 2;
+    } else if (alignment === 'right') {
+      // Right-align the text relative to availableWidth and annotation.x
+      adjustedX = x + (availableWidth - finalWidth);
+    }
     // Draw the logo image on the PDF
     page.drawImage(image, {
-      x: x,
+      x: adjustedX,
       y: y - finalHeight,
       width: finalWidth,
       height: finalHeight

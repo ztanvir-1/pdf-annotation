@@ -15,7 +15,7 @@
         [showToolbar]="true"
         [showPresentationModeButton]="false"
         [showBookModeButton]="false"
-        [showDownloadButton]="false"
+        [showDownloadButton]="true"
         [showPrintButton]="false"
         [showRotateButton]="false"
         [showOpenFileButton]="false"
@@ -90,7 +90,7 @@
           </div>
         </div> -->
         <div>
-          <p class="font-semibold">Text Alignment:</p>
+          <p class="font-semibold">Horizontal Alignment:</p>
           <div>
             <input type="radio" id="left" name="textAlign" [(ngModel)]="this.alignment" (ngModelChange)="onTextAlignChange($event)" value="left" />
             <label for="left" class="ml-2">Left</label>
@@ -120,7 +120,12 @@
 
           <div class="mb-4">
             <label for="font-color" class="block font-semibold text-gray-700">Type: </label>
-            <input type="text" id="font-color" [(ngModel)]="annotation.type" [disabled]="true" class="mt-2 block w-full border-none bg-white text-gray-700" />
+            <input
+            type="text" id="font-color" [(ngModel)]="annotation.type" [disabled]="true" class="mt-2 block w-full border-none bg-white text-gray-700" />
+          </div>
+          <div class="mb-4">
+            <label for="alignment" class="block font-semibold text-gray-700">Alignment: </label>
+            <input type="text" id="alignment" [(ngModel)]="annotation.alignment" [disabled]="true" class="mt-2 block w-full border-none bg-white text-gray-700" />
           </div>
 
           <div class="mb-4">
