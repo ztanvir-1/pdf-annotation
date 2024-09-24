@@ -66,18 +66,22 @@ export class PdfAnnotateComponent implements OnInit{
 
   async getLogoFromRpCode(){
     this.isLoading = true;
-    this.httpClient.get<NoteRpCode>('https://crmdev.gridsystems.pk/GRCallApp/AP-test/dynamics-api/api/crm/GetLogoAnnotationByRpCodeName?rpCodeName=' + this.rpCode).subscribe(res=>{
-      if(res){
-        this.isLoading = false;
-        this.annotationDetails = res;
-        this.downloadModifiedPdf();
+    this.httpClient.get<NoteRpCode>('https://crmdev.gridsystems.pk/GRCallApp/AP-test/dynamics-api/api/crm/GetLogoAnnotationByRpCodeName?rpCodeName=' + this.rpCode)
+    .subscribe({
+      next: (res) => {
+        this.isLoading = false;  // Set loading to false after getting response
+        if (res) {
+          this.annotationDetails = res;
+          this.downloadModifiedPdf();
+        }
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        console.error('Error fetching logo:', error);
+        this.isLoading = false;  // Always set loading to false in error case
+        this.cdr.detectChanges();
       }
-    },
-    error=>{
-      console.error('Error fetching logo:', error);
-      this.isLoading =false;
-    }
-    );
+    });
   }
 
   onShapeChange(newShape: string): void {
