@@ -35,7 +35,7 @@ export class PdfAnnotateComponent implements OnInit{
   public pdfDocument: PDFDocumentProxy | null = null; // Store the PDF document
   annotations: annotations[] = []; // Store annotation data
   private selectedFile: File | null = null;
-  fontsize:number = 12;
+  fontsize:number = 10;
   fontColor:string = "#00000";
   scaledHeight:number = 0;
   scaledWidth:number = 0;
@@ -93,6 +93,7 @@ export class PdfAnnotateComponent implements OnInit{
   }
 
   onTextAlignChange(alignment:string){
+    debugger;
     this.pdfViewerService.editorFontSize = this.fontsize;
   }
 
