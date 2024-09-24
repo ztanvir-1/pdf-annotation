@@ -93,10 +93,7 @@ export class PdfAnnotateComponent implements OnInit{
   }
 
   onTextAlignChange(alignment:string){
-    // Update the description based on the selected shape
-    // this.alignment = alignment;
-    // const test = this.pdfViewerService.();;
-
+    this.pdfViewerService.editorFontSize = this.fontsize;
   }
 
   // Handle file input change
@@ -283,7 +280,7 @@ export class PdfAnnotateComponent implements OnInit{
 
     // Modify the PDF by placing text on the specified coordinates
     for (const annotation of this.annotations) {
-      if ("url" === annotation.text) {
+      if ("url" === annotation.text.toLowerCase()) {
         annotation.text = this.annotationDetails.partnerUrl;
       }
 
