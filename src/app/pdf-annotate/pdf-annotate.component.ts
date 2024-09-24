@@ -65,7 +65,7 @@ export class PdfAnnotateComponent implements OnInit{
 
   async getLogoFromRpCode(){
     this.isLoading = true;
-    this.httpClient.get<NoteRpCode>('https://localhost:44327/api/crm/GetLogoAnnotationByRpCodeName?rpCodeName=' + this.rpCode).subscribe(res=>{
+    this.httpClient.get<NoteRpCode>('https://crmdev.gridsystems.pk/GRCallApp/AP-test/dynamics-api/api/crm/GetLogoAnnotationByRpCodeName?rpCodeName=' + this.rpCode).subscribe(res=>{
       if(res){
         this.isLoading = false;
         this.annotationDetails = res;
@@ -95,7 +95,7 @@ export class PdfAnnotateComponent implements OnInit{
   onTextAlignChange(alignment:string){
     // Update the description based on the selected shape
     // this.alignment = alignment;
-    const test = this.pdfViewerService.getSerializedAnnotations();;
+    // const test = this.pdfViewerService.();;
 
   }
 
