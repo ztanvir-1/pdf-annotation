@@ -8,6 +8,6 @@ import { noCacheInterceptor } from './no-cache.interceptor';
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }), provideRouter(routes),
-    provideHttpClient(withInterceptors([noCacheInterceptor]))
+    provideHttpClient()
   ]
 };
