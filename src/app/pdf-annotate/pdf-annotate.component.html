@@ -105,6 +105,21 @@
             <label for="right" class="ml-2">Right</label>
           </div>
         </div>
+        <div>
+          <p class="font-semibold">Logo Vertical Alignment:</p>
+          <div>
+            <input type="radio" id="top" name="v-textAlign" [(ngModel)]="this.verticalAlignment" (ngModelChange)="onTextAlignChange($event)" value="top" />
+            <label for="top" class="ml-2">Top</label>
+          </div>
+          <div>
+            <input type="radio" id="v-center" name="v-textAlign" [(ngModel)]="this.verticalAlignment" (ngModelChange)="onTextAlignChange($event)" value="center" />
+            <label for="v-center" class="ml-2">Center</label>
+          </div>
+          <div>
+            <input type="radio" id="bottom" name="v-textAlign" [(ngModel)]="this.verticalAlignment" (ngModelChange)="onTextAlignChange($event)" value="bottom" />
+            <label for="bottom" class="ml-2">Bottom</label>
+          </div>
+        </div>
       </div>
 
       <div style="max-height: 275px; overflow: auto;" class="mb-4">
@@ -125,8 +140,13 @@
             type="text" id="font-color" [(ngModel)]="annotation.type" [disabled]="true" class="mt-2 block w-full border-none bg-white text-gray-700" />
           </div>
           <div class="mb-4">
-            <label for="alignment" class="block font-semibold text-gray-700">Alignment: </label>
+            <label for="alignment" class="block font-semibold text-gray-700">Horizontal Alignment: </label>
             <input type="text" id="alignment" [(ngModel)]="annotation.alignment" [disabled]="true" class="mt-2 block w-full border-none bg-white text-gray-700" />
+          </div>
+
+          <div class="mb-4">
+            <label for="alignment" class="block font-semibold text-gray-700">Vertical Alignment: </label>
+            <input type="text" id="alignment" [(ngModel)]="annotation.verticalAlignment" [disabled]="true" class="mt-2 block w-full border-none bg-white text-gray-700" />
           </div>
 
           <div class="mb-4">

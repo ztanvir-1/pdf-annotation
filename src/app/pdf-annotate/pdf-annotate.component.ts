@@ -3,8 +3,11 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgxExtendedPdfViewerModule, NgxExtendedPdfViewerService, PDFDocumentProxy } from 'ngx-extended-pdf-viewer';
-import { PDFDocument, PDFPage, StandardFonts, rgb } from 'pdf-lib'; // Import from pdf-lib
+import { PDFArray, PDFDocument, PDFHexString, PDFName, PDFPage, PDFString, StandardFonts, rgb } from 'pdf-lib'; // Import from pdf-lib
 import { NoteRpCode } from './models/noteRpCode';
+import { pdfDefaultOptions } from 'ngx-extended-pdf-viewer';
+import { LinkTarget } from 'ngx-extended-pdf-viewer';
+
 
 interface annotations{
   x:number,
@@ -18,6 +21,7 @@ interface annotations{
   logoMaxWidth:number,
   logoMaxHeight:number,
   alignment:string,
+  verticalAlignment:string,
   availableWidth:number,
   availableHeight:number,
 }
@@ -53,6 +57,7 @@ export class PdfAnnotateComponent implements OnInit{
   public logoMaxWidth: number = 100; // Default max width for the logo
   public logoMaxHeight: number = 100; // Default max height for the logo
   alignment:string = "left";
+  verticalAlignment:string = "top";
   rpCode:string = "";
   annotationDetails:NoteRpCode = new NoteRpCode();
   textValue = "";
@@ -100,6 +105,7 @@ export class PdfAnnotateComponent implements OnInit{
   onTextAlignChange(alignment:string){
     debugger;
     this.pdfViewerService.editorFontSize = this.fontsize;
+    const annotations = this.pdfViewerService.getSerializedAnnotations();
   }
 
   // Handle file input change
@@ -122,6 +128,7 @@ export class PdfAnnotateComponent implements OnInit{
     } else {
       alert('Please upload a valid PDF file.');
     }
+    pdfDefaultOptions.externalLinkTarget = LinkTarget.BLANK;
   }
 
   pdfLoaded(name:string, event:any){
@@ -189,6 +196,7 @@ export class PdfAnnotateComponent implements OnInit{
             this.annotations[index].fontsize = this.fontsize;
             this.annotations[index].fontColor = this.fontColor;
             this.annotations[index].alignment = this.alignment;
+            this.annotations[index].verticalAlignment = this.verticalAlignment;
             this.annotations[index].availableWidth = availableWidth;
             this.annotations[index].availableHeight = availableHeight;
           } else {
@@ -205,6 +213,7 @@ export class PdfAnnotateComponent implements OnInit{
               logoMaxHeight:0,
               logoMaxWidth: 0,
               alignment:this.alignment,
+              verticalAlignment:this.verticalAlignment,
               availableWidth: availableWidth,
               availableHeight:availableHeight
             });
@@ -255,6 +264,7 @@ export class PdfAnnotateComponent implements OnInit{
             this.annotations[index].logoMaxWidth = this.logoMaxWidth;
             this.annotations[index].logoMaxHeight = this.logoMaxHeight;
             this.annotations[index].alignment = this.alignment;
+            this.annotations[index].verticalAlignment = this.verticalAlignment;
             this.annotations[index].availableWidth = availableWidth;
             this.annotations[index].availableHeight = availableHeight;
           } else {
@@ -271,6 +281,7 @@ export class PdfAnnotateComponent implements OnInit{
               logoMaxWidth: this.logoMaxWidth,
               logoMaxHeight: this.logoMaxHeight,
               alignment:this.alignment,
+              verticalAlignment:this.verticalAlignment,
               availableWidth: availableWidth,
               availableHeight:availableHeight
             });
@@ -297,8 +308,12 @@ export class PdfAnnotateComponent implements OnInit{
 
     // Modify the PDF by placing text on the specified coordinates
     for (const annotation of this.annotations) {
+      let textToDraw:string = "";
       if ("<url>" === annotation.text.toLowerCase()) {
-        annotation.text = this.annotationDetails.partnerUrl;
+        textToDraw = this.annotationDetails.partnerUrl;
+      }
+      else{
+        textToDraw = annotation.text;
       }
 
       const page = pdfDoc.getPage(annotation.page - 1); // Page is 0-indexed in pdf-lib
@@ -308,19 +323,20 @@ export class PdfAnnotateComponent implements OnInit{
       if(annotation.type == "logo"){
         const availableWidth = annotation.availableWidth || page.getWidth();
         const availableHeight = annotation.availableHeight || page.getHeight();
-        await this.addLogoToPdf(pdfDoc, this.logoFilePath, page, annotation.x , annotation.y, annotation.logoMaxWidth, annotation.logoMaxHeight, availableWidth, availableHeight, annotation.alignment);
+        await this.addLogoToPdf(pdfDoc, this.logoFilePath, page, annotation.x , annotation.y, annotation.logoMaxWidth, annotation.logoMaxHeight, availableWidth, availableHeight, annotation.alignment, annotation.verticalAlignment);
       }
       else{
         const rgbColor = this.hexToRgb(annotation.fontColor);
          // Calculate text width for center alignment
-        const textWidth = helveticaFont.widthOfTextAtSize(annotation.text, annotation.fontsize);
+        const textWidth = helveticaFont.widthOfTextAtSize(textToDraw, annotation.fontsize);
+        const textHeight = helveticaFont.heightAtSize(annotation.fontsize); // Text height for vertical alignment
         const pageWidth = page.getWidth(); // Get the width of the current page
         // Adjust the X coordinate to center-align the text
-        let alignedCoord = 0;
 
         const availableWidth = annotation.availableWidth || page.getWidth();
-        let adjustedX = annotation.x; // Default left alignment
+        const availableHeight = annotation.availableHeight || page.getHeight();
 
+        let adjustedX = annotation.x; // Default left alignment
         if (annotation.alignment === 'center') {
           // Center-align the text relative to availableWidth and annotation.x
           adjustedX = annotation.x + (availableWidth - textWidth) / 2;
@@ -329,13 +345,53 @@ export class PdfAnnotateComponent implements OnInit{
           adjustedX = annotation.x + (availableWidth - textWidth);
         }
 
-        page.drawText(annotation.text, {
+        // let adjustedY = annotation.y; // Default top alignment
+        // if (annotation.verticalAlignment === 'center') {
+        //   // Center-align the text relative to availableWidth and annotation.x
+        //   adjustedY = annotation.y + (availableHeight - textHeight) / 2;
+        // } else if (annotation.verticalAlignment === 'bottom') {
+        //   // Bottom-align the text relative to availableWidth and annotation.x
+        //   adjustedY = annotation.y - textHeight;
+        // }
+
+        page.drawText(textToDraw, {
           x:adjustedX,
           y: annotation.y,
           size: annotation.fontsize,
           font:helveticaFont,
           color: rgb(rgbColor.r/255, rgbColor.g/255, rgbColor.b/255),
         });
+
+        if("<url>" === annotation.text.toLowerCase()){
+            // Create the clickable link annotation using PDF objects
+          let link = textToDraw;
+          if(!link.includes("http")){
+            link = "https://" + link;
+          }
+          const linkAnnotation = pdfDoc.context.obj({
+            Type: PDFName.of('Annot'),
+            Subtype: PDFName.of('Link'),
+            Rect: [adjustedX, annotation.y, adjustedX + textWidth, annotation.y + textHeight], // Clickable area
+            Border: [0, 0, 0], // No border
+            A: pdfDoc.context.obj({
+              Type: PDFName.of('Action'),
+              S: PDFName.of('URI'),
+              URI: PDFString.of(link), // The URL to navigate to when clicked
+            }),
+          });
+
+          // Get existing annotations or create a new array if none exist
+          const annotations = page.node.get(PDFName.of('Annots')) as PDFArray | undefined;
+
+          if (annotations) {
+            // Append the new annotation if there are existing ones
+            annotations.push(linkAnnotation);
+          } else {
+            // Create a new annotations array and add the link annotation
+            const newAnnotations = pdfDoc.context.obj([linkAnnotation]);
+            page.node.set(PDFName.of('Annots'), newAnnotations);
+          }
+        }
       }
     }
 
@@ -407,7 +463,8 @@ export class PdfAnnotateComponent implements OnInit{
     maxHeight: number,
     availableWidth:number,
     availableHeight:number,
-    alignment:string
+    alignment:string,
+    verticalAlignment:string
   ): Promise<void> {
     // const imageBytes = await fetch(logoPath).then(res => res.arrayBuffer()); // Load the image file
     const imageBytes = this.base64ToArrayBuffer(this.annotationDetails.documentBody);
@@ -456,10 +513,19 @@ export class PdfAnnotateComponent implements OnInit{
       // Right-align the text relative to availableWidth and annotation.x
       adjustedX = x + (availableWidth - finalWidth);
     }
+
+    let adjustedY = y; // Default top alignment
+    if (verticalAlignment === 'center') {
+      // Center-align the text relative to availableWidth and annotation.x
+      adjustedY = (y-finalHeight) - (availableHeight - finalHeight) / 2;
+    } else if (verticalAlignment === 'bottom') {
+      // Bottom-align the text relative to availableWidth and annotation.x
+      adjustedY = y - (availableHeight - finalHeight);
+    }
     // Draw the logo image on the PDF
     page.drawImage(image, {
       x: adjustedX,
-      y: y - finalHeight,
+      y: adjustedY - finalHeight,
       width: finalWidth,
       height: finalHeight
     });
