@@ -85,6 +85,7 @@ export class PdfAnnotateComponent implements OnInit{
   currentPageWidth: any;
   currentPageHeight: any;
   selectedAnnotationIds: any[] = [];
+  showOptions: boolean = false;
 
   constructor(private cdr:ChangeDetectorRef, private pdfViewerService: NgxExtendedPdfViewerService, private httpClient:HttpClient, private renderer: Renderer2, private rendererFactory :RendererFactory2, private notificationService: PDFNotificationService, private qrService:QrCodeGeneratorService, private el: ElementRef) {
     this.renderer = this.rendererFactory.createRenderer(null, null);
@@ -164,6 +165,7 @@ export class PdfAnnotateComponent implements OnInit{
 
   pdfLoaded(name:string, event:any){
     console.log("pdf loaded: ", event);
+    this.showOptions = true;
   }
 
   annotationEditorEvent(name:string, event:any){

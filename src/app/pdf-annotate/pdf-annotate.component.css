@@ -36,7 +36,7 @@
 }
 
 .selected-annotation {
-  background-color: gray;
+  border: 5px solid red !important;
 }
 
 
