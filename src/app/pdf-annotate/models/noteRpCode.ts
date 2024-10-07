@@ -7,6 +7,7 @@ export class NoteRpCode {
   documentBody: string;
   fileName: string;
   partnerUrl: string;
+  partnerName:string;
 
   constructor() {
     this.guid = '';
@@ -17,5 +18,6 @@ export class NoteRpCode {
     this.documentBody = '';
     this.fileName = '';
     this.partnerUrl = '';
+    this.partnerName = '';
   }
 }

@@ -1,12 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit} from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, HostListener, OnInit, Renderer2, RendererFactory2, ViewChild, effect} from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { NgxExtendedPdfViewerModule, NgxExtendedPdfViewerService, PDFDocumentProxy } from 'ngx-extended-pdf-viewer';
-import { PDFArray, PDFDocument, PDFHexString, PDFName, PDFPage, PDFString, StandardFonts, rgb } from 'pdf-lib'; // Import from pdf-lib
+import { EditorAnnotation, FreeTextEditorAnnotation, IPDFViewerApplication, NgxExtendedPdfViewerModule, NgxExtendedPdfViewerService, PDFDocumentProxy, PDFNotificationService } from 'ngx-extended-pdf-viewer';
+import { PDFArray, PDFDocument, PDFHexString, PDFName, PDFPage, PDFString, StandardFonts, rectangle, rgb } from 'pdf-lib'; // Import from pdf-lib
 import { NoteRpCode } from './models/noteRpCode';
 import { pdfDefaultOptions } from 'ngx-extended-pdf-viewer';
 import { LinkTarget } from 'ngx-extended-pdf-viewer';
+import { QrCodeGeneratorService } from '../../services/qr-service/qr-service.service';
 
 
 interface annotations{
@@ -24,6 +25,13 @@ interface annotations{
   verticalAlignment:string,
   availableWidth:number,
   availableHeight:number,
+
+  rectX:number,
+  rectY:number,
+  rectWidth:number,
+  rectHeight:number,
+
+  pageNumber:number
 }
 
 @Component({
@@ -62,8 +70,28 @@ export class PdfAnnotateComponent implements OnInit{
   annotationDetails:NoteRpCode = new NoteRpCode();
   textValue = "";
   isLoading: boolean = false;  // Flag to control loader visibility
+  pdfEditorEventSource:string | null  = null;
+  annotation:annotations | undefined = undefined;
+  private PDFViewerApplication?: IPDFViewerApplication;
 
-  constructor(private cdr:ChangeDetectorRef, private pdfViewerService: NgxExtendedPdfViewerService, private httpClient:HttpClient) {}
+  public pdfWidth: number = 0;  // Store PDF width
+  public pdfHeight: number = 0; // Store PDF height
+  public gridRows: number[] = [];  // Create rows for the grid
+  public gridCols: number[] = [];  // Create columns for the grid
+
+  gridEnabled = true;  // By default, the grid is disabled
+  showEnableGridToggle = true;
+  gridWidth:number = 30;
+  currentPageWidth: any;
+  currentPageHeight: any;
+  selectedAnnotationIds: any[] = [];
+
+  constructor(private cdr:ChangeDetectorRef, private pdfViewerService: NgxExtendedPdfViewerService, private httpClient:HttpClient, private renderer: Renderer2, private rendererFactory :RendererFactory2, private notificationService: PDFNotificationService, private qrService:QrCodeGeneratorService, private el: ElementRef) {
+    this.renderer = this.rendererFactory.createRenderer(null, null);
+    effect(() => {
+      this.PDFViewerApplication = notificationService.onPDFJSInitSignal();
+    });
+  }
 
   ngOnInit(){
     // this.getLogoFromRpCode();
@@ -102,10 +130,13 @@ export class PdfAnnotateComponent implements OnInit{
     }
   }
 
-  onTextAlignChange(alignment:string){
+  onTextAlignChange(source:string, alignment:string){
     debugger;
-    this.pdfViewerService.editorFontSize = this.fontsize;
-    const annotations = this.pdfViewerService.getSerializedAnnotations();
+    this.pdfEditorEventSource = source;
+    if(source == 'ha'){
+      this.alignment = alignment;
+      this.pdfViewerService.editorFontSize = 10;
+    }
   }
 
   // Handle file input change
@@ -137,6 +168,61 @@ export class PdfAnnotateComponent implements OnInit{
 
   annotationEditorEvent(name:string, event:any){
     console.log('Annotation Editor Event:', event);
+    if(this.pdfEditorEventSource == "ha"){
+      const annotationId = event.source.id;
+      this.annotation = this.annotations.find(x=>x.id == annotationId);
+      if(this.annotation){
+        this.annotation.alignment = this.alignment;
+      }
+      this.pdfEditorEventSource = null;
+      this.pdfViewerService.editorFontSize = this.annotation!.fontsize;
+      // this.pdfViewerService.editorFontColor = this.annotation!.fontColor;
+    }
+    else if(this.pdfEditorEventSource && this.pdfEditorEventSource == "xcoord" && event.type != "removed"){
+      const annotationId = event.source.id;
+      this.annotation = this.annotations.find(x=>x.id == annotationId);
+      // remove annotations
+      const filter = (serial: any) =>
+      serial?.annotationType === 3 &&
+      serial?.pageIndex === this.annotation!.pageNumber - 1 ;
+      this.pdfViewerService.removeEditorAnnotations(filter);
+      // redraw annotation
+      this.drawAnnotations(annotationId);
+      this.pdfEditorEventSource = null;
+      this.textValue = this.annotation!.text;
+      //this.pdfViewerService.editorFontSize = annotation!.fontsize;
+    }
+    else if(this.pdfEditorEventSource == null || this.pdfEditorEventSource == 'va'){
+      this.setAnnotationsList(event);
+    }
+  }
+
+  drawAnnotations(annotationId:string){
+    for(let annotation of this.annotations){
+      let color = this.hexToRgb(annotation.fontColor);
+      const textEditorAnnotation: FreeTextEditorAnnotation = {
+          annotationType: 3,
+          color: [color.r/255, color.g/255, color.b/255],
+          fontSize: annotation.fontsize,
+          value: annotation.text,
+          pageIndex: 0,
+          rect: [
+            annotation.rectHeight, // height?
+            annotation.rectY, // y
+            annotation.rectX, // x
+            annotation.rectWidth, // width?
+          ],
+          rotation: 0,
+        };
+        this.pdfViewerService.addEditorAnnotation(textEditorAnnotation);
+    }
+  }
+
+  setAnnotationsList(event:any){
+    let latestSerializedAnnotation:EditorAnnotation | null | undefined = null;
+    let serializedAnnotations:EditorAnnotation[] | null | undefined = this.pdfViewerService.getSerializedAnnotations();
+    if (serializedAnnotations && serializedAnnotations.length > 0)
+      latestSerializedAnnotation = serializedAnnotations[serializedAnnotations.length - 1];
 
     if(event.editorType === "FreeTextEditor" || (event.source && event.source.name && event.source.name == "freeTextEditor")){
       if(event.value && event.source && event.source.x && event.source.y && (event.type == "moved" || event.type == "fontSizeChanged" || event.type == "commit" || event.type == "colorChanged")){
@@ -171,34 +257,34 @@ export class PdfAnnotateComponent implements OnInit{
           this.id = annotationId;
           const availableWidth = event.source.width * event.source.pageDimensions[0];
           const availableHeight = event.source.height * event.source.pageDimensions[1];
+          const pageNumber = event.page;
           if (index !== -1) {
-            // If the annotation exists, update the existing object
-            // this.annotations[index] = {
-            //   id: annotationId,
-            //   page: event.page,
-            //   x: x,
-            //   y: y,
-            //   text: 'Placed Text',
-            //   type: type,
-            //   fontsize:this.fontsize,
-            //   fontColor:this.fontColor
-            // };
-
             this.annotations[index].id = annotationId;
             this.annotations[index].page = event.page;
             this.annotations[index].x = x;
             this.annotations[index].y = y;
-            if ("moved" != event.type && event.type != "fontSizeChanged" && event.type != "colorChanged") {
+
+            if("moved" != event.type && event.type != "fontSizeChanged" && event.type != "colorChanged"){
               this.annotations[index].text = this.textValue;
             }
-            // this.annotations[index].text = this.textValue;
-            // this.annotations[index].type = type;
             this.annotations[index].fontsize = this.fontsize;
-            this.annotations[index].fontColor = this.fontColor;
+            if(event.type && event.type == "colorChanged"){
+              this.annotations[index].fontColor = this.fontColor;
+            }
             this.annotations[index].alignment = this.alignment;
             this.annotations[index].verticalAlignment = this.verticalAlignment;
             this.annotations[index].availableWidth = availableWidth;
             this.annotations[index].availableHeight = availableHeight;
+
+            if(latestSerializedAnnotation && latestSerializedAnnotation.rect.length > 0){
+              this.annotations[index].rectHeight = !this.annotations[index]?.rectHeight ? latestSerializedAnnotation.rect[0] ? latestSerializedAnnotation.rect[0] : 0 : this.annotations[index].rectHeight;
+              this.annotations[index].rectY = !this.annotations[index]?.rectY ? latestSerializedAnnotation.rect[1] ? latestSerializedAnnotation.rect[1] : 0 : this.annotations[index].rectY;
+              this.annotations[index].rectX = !this.annotations[index]?.rectX ? latestSerializedAnnotation.rect[2] ? latestSerializedAnnotation.rect[2] : 0 : this.annotations[index].rectX;
+              this.annotations[index].rectWidth = !this.annotations[index]?.rectWidth ? latestSerializedAnnotation.rect[3] ? latestSerializedAnnotation.rect[3] : 0 : this.annotations[index].rectWidth;
+            }
+
+            this.annotations[index].pageNumber = pageNumber
+
           } else {
             // If it doesn't exist, add the new annotation to the array
             this.annotations.push({
@@ -215,7 +301,12 @@ export class PdfAnnotateComponent implements OnInit{
               alignment:this.alignment,
               verticalAlignment:this.verticalAlignment,
               availableWidth: availableWidth,
-              availableHeight:availableHeight
+              availableHeight:availableHeight,
+              rectHeight: latestSerializedAnnotation!.rect[0] ? latestSerializedAnnotation!.rect[0] : 0,
+              rectY: latestSerializedAnnotation!.rect[1] ? latestSerializedAnnotation!.rect[1] : 0,
+              rectX: latestSerializedAnnotation!.rect[2] ? latestSerializedAnnotation!.rect[2] : 0,
+              rectWidth: latestSerializedAnnotation!.rect[3] ? latestSerializedAnnotation!.rect[3] : 0,
+              pageNumber: pageNumber
             });
           }
         }
@@ -244,19 +335,8 @@ export class PdfAnnotateComponent implements OnInit{
           this.id = annotationId;
           const availableWidth = event.source.width * event.source.pageDimensions[0];
           const availableHeight = event.source.height * event.source.pageDimensions[1];
+          const pageNumber = event.page;
           if (index !== -1) {
-            // If the annotation exists, update the existing object
-            // this.annotations[index] = {
-            //   id: annotationId,
-            //   page: event.page,
-            //   x: x,
-            //   y: y,
-            //   text: 'Placed Text',
-            //   type: type,
-            //   fontsize:this.fontsize,
-            //   fontColor:this.fontColor
-            // };
-
             this.annotations[index].id = annotationId;
             this.annotations[index].page = event.page;
             this.annotations[index].x = x;
@@ -267,24 +347,14 @@ export class PdfAnnotateComponent implements OnInit{
             this.annotations[index].verticalAlignment = this.verticalAlignment;
             this.annotations[index].availableWidth = availableWidth;
             this.annotations[index].availableHeight = availableHeight;
-          } else {
-            // If it doesn't exist, add the new annotation to the array
-            this.annotations.push({
-              id: annotationId,
-              page: event.page,
-              x: x,
-              y: y,
-              text:'',
-              type:'logo',
-              fontsize:this.fontsize,
-              fontColor:this.fontColor,
-              logoMaxWidth: this.logoMaxWidth,
-              logoMaxHeight: this.logoMaxHeight,
-              alignment:this.alignment,
-              verticalAlignment:this.verticalAlignment,
-              availableWidth: availableWidth,
-              availableHeight:availableHeight
-            });
+            if(latestSerializedAnnotation && latestSerializedAnnotation.rect.length > 0){
+              this.annotations[index].rectHeight = !this.annotations[index]?.rectHeight ? latestSerializedAnnotation.rect[0] ? latestSerializedAnnotation.rect[0] : 0 : this.annotations[index].rectHeight;
+              this.annotations[index].rectY = !this.annotations[index]?.rectY ? latestSerializedAnnotation.rect[1] ? latestSerializedAnnotation.rect[1] : 0 : this.annotations[index].rectY;
+              this.annotations[index].rectX = !this.annotations[index]?.rectX ? latestSerializedAnnotation.rect[2] ? latestSerializedAnnotation.rect[2] : 0 : this.annotations[index].rectX;
+              this.annotations[index].rectWidth = !this.annotations[index]?.rectWidth ? latestSerializedAnnotation.rect[3] ? latestSerializedAnnotation.rect[3] : 0 : this.annotations[index].rectWidth;
+            }
+            this.annotations[index].pageNumber = pageNumber
+
           }
         }
       }
@@ -293,7 +363,6 @@ export class PdfAnnotateComponent implements OnInit{
       }
     }
   }
-
   // Add text to the PDF at specified coordinates and download it
   async downloadModifiedPdf(): Promise<void> {
     if (!this.selectedFile) {
@@ -312,18 +381,19 @@ export class PdfAnnotateComponent implements OnInit{
       if ("<url>" === annotation.text.toLowerCase()) {
         textToDraw = this.annotationDetails.partnerUrl;
       }
+      else if("<name>" == annotation.text.toLowerCase()){
+        textToDraw = "this is going be partner's name";
+      }
       else{
         textToDraw = annotation.text;
       }
 
       const page = pdfDoc.getPage(annotation.page - 1); // Page is 0-indexed in pdf-lib
-      // const width = page.getWidth();
-      // const height = page.getHeight();
 
-      if(annotation.type == "logo"){
+      if(annotation.type == "logo" || annotation.type == "qr"){
         const availableWidth = annotation.availableWidth || page.getWidth();
         const availableHeight = annotation.availableHeight || page.getHeight();
-        await this.addLogoToPdf(pdfDoc, this.logoFilePath, page, annotation.x , annotation.y, annotation.logoMaxWidth, annotation.logoMaxHeight, availableWidth, availableHeight, annotation.alignment, annotation.verticalAlignment);
+        await this.addLogoToPdf(pdfDoc, page, annotation.x , annotation.y, annotation.logoMaxWidth, annotation.logoMaxHeight, availableWidth, availableHeight, annotation.alignment, annotation.verticalAlignment, annotation.type);
       }
       else{
         const rgbColor = this.hexToRgb(annotation.fontColor);
@@ -344,15 +414,6 @@ export class PdfAnnotateComponent implements OnInit{
           // Right-align the text relative to availableWidth and annotation.x
           adjustedX = annotation.x + (availableWidth - textWidth);
         }
-
-        // let adjustedY = annotation.y; // Default top alignment
-        // if (annotation.verticalAlignment === 'center') {
-        //   // Center-align the text relative to availableWidth and annotation.x
-        //   adjustedY = annotation.y + (availableHeight - textHeight) / 2;
-        // } else if (annotation.verticalAlignment === 'bottom') {
-        //   // Bottom-align the text relative to availableWidth and annotation.x
-        //   adjustedY = annotation.y - textHeight;
-        // }
 
         page.drawText(textToDraw, {
           x:adjustedX,
@@ -455,7 +516,6 @@ export class PdfAnnotateComponent implements OnInit{
   // Add logo to the PDF at specific coordinates with max width and height
   async addLogoToPdf(
     pdfDoc: PDFDocument,
-    logoPath: string,
     page: PDFPage,
     x: number,
     y: number,
@@ -464,10 +524,18 @@ export class PdfAnnotateComponent implements OnInit{
     availableWidth:number,
     availableHeight:number,
     alignment:string,
-    verticalAlignment:string
+    verticalAlignment:string,
+    type:string
   ): Promise<void> {
     // const imageBytes = await fetch(logoPath).then(res => res.arrayBuffer()); // Load the image file
-    const imageBytes = this.base64ToArrayBuffer(this.annotationDetails.documentBody);
+    let imageBytes:ArrayBuffer;
+    if(type == "qr"){
+      const qrBase64:string = await this.qrService.generateQrCode(this.annotationDetails.partnerUrl);
+      imageBytes = this.base64ToArrayBuffer(qrBase64);
+    }
+    else{
+     imageBytes = this.base64ToArrayBuffer(this.annotationDetails.documentBody);
+    }
 
     let image;
     if (this.getImageTypeFromPath(this.annotationDetails.fileName) === "png") {
@@ -546,13 +614,18 @@ export class PdfAnnotateComponent implements OnInit{
     console.log("on attachment loaded: ", event);
   }
 
-  async addImage(): Promise<void> {
+  async addImage(src:string): Promise<void> {
+
     if (!this.selectedFile) {
       alert('Please upload a PDF file first.');
       return;
     }
+    let dataUrl:string = 'assets/images/template_square.png';
+    if(src == 'qr'){
+      dataUrl = 'assets/images/templare_square_qr.png';
+    }
     await this.pdfViewerService.addImageToAnnotationLayer({
-      urlOrDataUrl: 'assets/images/template_square.png',
+      urlOrDataUrl: dataUrl,
       page: 0,
       left: '0%',
       bottom: '0%',
@@ -561,6 +634,8 @@ export class PdfAnnotateComponent implements OnInit{
       rotation: 0
     });
     this.pdfViewerService.switchAnnotationEdtorMode(13);
+    const latestAnnotationObject = this.getAnnotationsOnPage();
+    this.addImageAnnotationsToList(latestAnnotationObject, src);
   }
 
   base64ToArrayBuffer(base64: string): ArrayBuffer {
@@ -593,31 +668,343 @@ export class PdfAnnotateComponent implements OnInit{
   }
   annotationEditorLayerRendered(name:string, event:any){
     console.log("annotationEditorLayerRendered loaded: ", event);
+    if(event && event.source && event.source.viewport && event.source.viewport.viewBox && event.source.viewport.viewBox.length > 0){
+      this.currentPageWidth = event.source.viewport.viewBox[2];
+      this. currentPageHeight = event.source.viewport.viewBox[3];
+      this.addGridOverlayToPages(this.currentPageWidth, this.currentPageHeight);
+    }
   }
 
-  // Called when the annotation editor layer is rendered
-  onAnnotationEditorLayerRendered(event: any): void {
-    // Find all annotations and add click event listeners to them
-    const annotationsLayer = document.querySelectorAll('.annotationLayer .annotation');
-    annotationsLayer.forEach((annotation: any) => {
-      annotation.addEventListener('click', (clickEvent: MouseEvent) => {
-        this.onAnnotationClicked(annotation);
-      });
+  onCoordinatesChange(source:string, annotation:annotations){
+     // remove annotation
+    this.annotation = annotation;
+    this.pdfEditorEventSource = null;
+    this.pdfEditorEventSource = source;
+    this.pdfViewerService.editorFontSize = annotation!.fontsize;
+    // this.pdfViewerService.editorFontSize = 10;
+    this.annotations = this.annotations.filter(x=>x.id!=annotation.id);
+  }
+
+  getAnnotationsOnPage(): Object | null | undefined {
+    const pdf: PDFDocumentProxy | undefined = this.PDFViewerApplication?.pdfDocument;
+    const annotationsList = pdf?.annotationStorage.getAll();
+
+    // Check if annotationsList exists and has any values
+    if (annotationsList && Object.keys(annotationsList).length > 0) {
+        // Extract the values from the annotationsList object
+        const annotationsArray = Object.values(annotationsList);
+
+        // Assuming the "latest" annotation is the last one in the object
+        const latestAnnotation = annotationsArray[annotationsArray.length - 1];
+
+        console.log("Latest Annotation:", latestAnnotation);
+        return latestAnnotation;
+    }
+
+    console.log("No annotations available.");
+    return null;
+  }
+  addImageAnnotationsToList(eventSource:any, type:string){
+    let latestSerializedAnnotation:EditorAnnotation | null | undefined = null;
+    let serializedAnnotations:EditorAnnotation[] | null | undefined = this.pdfViewerService.getSerializedAnnotations();
+    if (serializedAnnotations && serializedAnnotations.length > 0) {
+      latestSerializedAnnotation = serializedAnnotations[serializedAnnotations.length - 1];
+    if((eventSource.x!=null || eventSource.x!=undefined)  && (eventSource.y!=null || eventSource.y!=undefined)){
+      if(eventSource.pageDimensions && eventSource.pageDimensions.length > 0){
+        const annotationId = eventSource.id;
+        this.logoMaxWidth = eventSource.width * eventSource.pageDimensions[0];
+        this.logoMaxHeight = eventSource.height * eventSource.pageDimensions[1];
+        const { x, y } = this.convertToPixesCoordinatesForLogo(eventSource.pageDimensions[0], eventSource.pageDimensions[1], eventSource.x, eventSource.y, this.logoMaxHeight);
+
+        this.x = x;
+        this.y = y;
+        this.id = annotationId;
+        const availableWidth = eventSource.width * eventSource.pageDimensions[0];
+        const availableHeight = eventSource.height * eventSource.pageDimensions[1];
+        const pageNumber = eventSource.pageIndex;
+        // If it doesn't exist, add the new annotation to the array
+        this.annotations.push({
+          id: annotationId,
+          page: pageNumber + 1,
+          x: x,
+          y: y,
+          text:'',
+          type:type,
+          fontsize:this.fontsize,
+          fontColor:this.fontColor,
+          logoMaxWidth: this.logoMaxWidth,
+          logoMaxHeight: this.logoMaxHeight,
+          alignment:this.alignment,
+          verticalAlignment:this.verticalAlignment,
+          availableWidth: availableWidth,
+          availableHeight:availableHeight,
+          rectHeight:  latestSerializedAnnotation.rect[0] ? latestSerializedAnnotation.rect[0] : 0,
+          rectY: latestSerializedAnnotation.rect[1] ? latestSerializedAnnotation.rect[1] : 0,
+          rectX: latestSerializedAnnotation.rect[2] ? latestSerializedAnnotation.rect[2] : 0,
+          rectWidth: latestSerializedAnnotation.rect[3] ? latestSerializedAnnotation.rect[3] : 0,
+          pageNumber:pageNumber
+        });
+
+        this.cdr.detectChanges();
+      }
+    }
+  }
+  }
+
+  // this method will be used to draw annotations on pdf using the object retrieved from the db
+  async drawAllAnnotations(){
+    this.annotations.push({
+      alignment:"left",
+      availableHeight: 0,
+      availableWidth: 0,
+      fontColor: "",
+      fontsize: 10,
+      id: "dsod",
+      logoMaxHeight: 0,
+      logoMaxWidth: 0,
+      page:1,
+      pageNumber: 1,
+      rectHeight: 8.3357452966714921,
+      rectWidth: 637.665329990203,
+      rectX: 224.33574529667153,
+      rectY: 421.69354542428652,
+      text: "",
+      type:"logo",
+      verticalAlignment:"top",
+      x:0,
+      y:0
+    })
+
+    this.annotations.push({
+      alignment:"left",
+      availableHeight: 0,
+      availableWidth: 0,
+      fontColor: "#000000",
+      fontsize: 10,
+      id: "dsod",
+      logoMaxHeight: 0,
+      logoMaxWidth: 0,
+      page:1,
+      pageNumber: 1,
+      rectHeight:250.505076003394381,
+      rectWidth: 378.32260099584425,
+      rectX: 288.201561626397563,
+      rectY: 359.355483816320432,
+      text: "test text",
+      type:"text",
+      verticalAlignment:"top",
+      x:0,
+      y:0
+    })
+
+    for(let annotation of this.annotations){
+      if(annotation.type == "logo" || annotation.type == "qr"){
+        let dataUrl:string = 'assets/images/template_square.png';
+        if(annotation.type == 'qr'){
+          dataUrl = 'assets/images/templare_square_qr.png';
+        }
+        await this.pdfViewerService.addImageToAnnotationLayer({
+          urlOrDataUrl: dataUrl,
+          page: annotation.page - 1,
+          left: annotation.rectHeight,
+          bottom: annotation.rectY,
+          right: annotation.rectX,
+          top: annotation.rectWidth,
+          rotation: 0
+        });
+        this.pdfViewerService.switchAnnotationEdtorMode(13);
+      }
+      else{
+        let color = this.hexToRgb(annotation.fontColor);
+        const textEditorAnnotation: FreeTextEditorAnnotation = {
+            annotationType: 3,
+            color: [color.r/255, color.g/255, color.b/255],
+            fontSize: annotation.fontsize,
+            value: annotation.text,
+            pageIndex: 0,
+            rect: [
+              annotation.rectHeight, // height?
+              annotation.rectY, // y
+              annotation.rectX, // x
+              annotation.rectWidth, // width?
+            ],
+            rotation: 0,
+          };
+          this.pdfViewerService.addEditorAnnotation(textEditorAnnotation);
+      }
+    }
+  }
+
+  addGridOverlayToPages(pageWidth: number, pageHeight: number): void {
+    // Wait for the PDF to load
+    this.isLoading = true;
+    setTimeout(() => {
+      if(this.gridWidth >= 10 && this.gridWidth <= 100){
+        // Get the parent div with the attributes data-l10n-id="pdfjs-page-landmark" and data-page-number="1"
+        const targetDiv = document.querySelector('[data-l10n-id="pdfjs-page-landmark"][data-page-number="1"]');
+
+        // Check if the target div exists
+        if (targetDiv) {
+          // Get the width and height from the target div
+          const computedStyles = window.getComputedStyle(targetDiv);
+          const width = computedStyles.getPropertyValue('width');
+          const height = computedStyles.getPropertyValue('height');
+
+          // Iterate over all children with data-l10n-id="pdfjs-page-landmark"
+          const pages = document.querySelectorAll('[data-l10n-id="pdfjs-page-landmark"]');
+
+          pages.forEach((page: Element) => {
+            const pageNumber = page.getAttribute('data-page-number');
+
+            if (pageNumber) {
+              // Check if an annotationLayer div without the hidden attribute exists
+              const existingAnnotationLayer = page.querySelector('.annotationLayer:not([hidden])');
+
+              // If a visible annotationLayer exists, remove it
+              if (existingAnnotationLayer) {
+                existingAnnotationLayer.remove();
+              }
+
+              // Create a new annotationLayer div
+              const annotationLayer = document.createElement('div');
+              annotationLayer.classList.add('annotationLayer');
+
+              // Apply the width and height from the target div (data-page-number="1")
+              annotationLayer.style.width = width;
+              annotationLayer.style.height = height;
+
+              // Ensure the annotationLayer has display: grid
+              if(this.gridEnabled)
+                annotationLayer.style.display = 'grid';
+              else
+                annotationLayer.style.display = 'none';
+
+              // Create a grid inside the annotationLayer
+              this.createGridInAnnotationLayer(annotationLayer, this.gridWidth, pageWidth, pageHeight); // 50px grid cells
+
+              // Append the annotationLayer to the page div
+              page.appendChild(annotationLayer);
+            }
+          });
+        }
+      }
+      this.isLoading = false;
+      this.cdr.detectChanges()
+    }, 1000);  // Delay to ensure PDF is fully loaded
+  }
+
+  createGridInAnnotationLayer(annotationLayer: HTMLElement, cellSize: number, pageWidth: number, pageHeight: number): void {
+   // Calculate the number of rows and columns based on the PDF page dimensions
+    const numRows = Math.floor(pageHeight / cellSize);
+    const numCols = Math.floor(pageWidth / cellSize);
+
+    // Set grid-template-rows and grid-template-columns dynamically based on the calculated rows and columns
+    annotationLayer.style.gridTemplateRows = `repeat(${numRows}, 1fr)`;
+    annotationLayer.style.gridTemplateColumns = `repeat(${numCols}, 1fr)`;
+
+    // Create grid cells and append them to the annotationLayer
+    for (let row = 0; row < numRows; row++) {
+      for (let col = 0; col < numCols; col++) {
+        const gridCell = document.createElement('div');
+         // Apply inline styles to create dashed borders without overlapping
+         gridCell.style.borderTop = "1px dashed black"; // Only top border
+         gridCell.style.borderLeft = "1px dashed black"; // Only left border
+
+         // Prevent double borders by applying border only to specific sides
+         if (row === numRows - 1) {
+           gridCell.style.borderBottom = "1px dashed black"; // Add bottom border for the last row
+         }
+
+         if (col === numCols - 1) {
+           gridCell.style.borderRight = "1px dashed black"; // Add right border for the last column
+         }
+        gridCell.classList.add('grid-cell');
+        annotationLayer.appendChild(gridCell);
+      }
+    }
+  }
+
+  toggleGrid(): void {
+    // Get all divs inside #viewer where data-l10n-id="pdfjs-page-landmark"
+    const landmarkDivs = document.querySelectorAll('#viewer [data-l10n-id="pdfjs-page-landmark"]');
+
+    // Iterate through each landmark div and toggle the visibility of the annotationLayer
+    landmarkDivs.forEach((landmarkDiv) => {
+      // Only select the annotationLayer that does not have the 'disabled' attribute
+      const annotationLayer = landmarkDiv.querySelector('.annotationLayer:not([hidden])') as HTMLElement;
+
+      if (annotationLayer) {
+        // Toggle the visibility of the annotationLayer
+        annotationLayer.style.display = this.gridEnabled ? 'grid' : 'none';
+      }
     });
   }
 
-  // Method to handle annotation click
-  onAnnotationClicked(annotation: HTMLElement): void {
-    console.log('Annotation clicked:', annotation);
-
-    // Trigger the annotationEditorEvent
-    const annotationId = annotation.getAttribute('data-id');
-    const event = { annotationId }; // You can include additional info here if needed
-    // this.annotationEditorEvent('editor', event);
+  @HostListener('window:keydown', ['$event'])
+  handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      this.selectDivWithEditToolbar(event.key);
+    }
   }
 
-  public set editorFontSize(event: Event) {
-    const target = event.target as HTMLInputElement;
-    const test = this.pdfViewerService.getSerializedAnnotations();
+  selectDivWithEditToolbar(key: string): void {
+    this.selectedAnnotationIds = [];
+    const allDivs = this.el.nativeElement.querySelectorAll('div.draggable');
+    var selectedAnnotation: any = [];
+    allDivs.forEach((div: HTMLElement) => {
+      const editToolbar = div.querySelector('div.editToolbar');
+      if (editToolbar && !editToolbar.classList.contains('hidden')) {
+        selectedAnnotation.push(div);
+      }
+    });
+
+    if (selectedAnnotation && selectedAnnotation.length > 0) {
+      selectedAnnotation.forEach((ant: any) => {
+        if ("click" === key) {
+          if (ant.id) {
+            this.selectedAnnotationIds.push(ant.id);
+          }
+        } else {
+          this.updateCoordinatesOnKeyboardClick(ant.id, key);
+        }
+      });
+    } else {
+      this.selectedAnnotationIds = [];
+    }
+  }
+
+  updateCoordinatesOnKeyboardClick(id: string, key: string) {
+    if(id){
+      const index = this.annotations.findIndex(annotation => annotation.id == id);
+      if (index !== -1) {
+        if (key === 'ArrowUp')
+        this.annotations[index].y += 1;
+        else if (key === 'ArrowDown') {
+          this.annotations[index].y -= 1;
+        } else if (key === 'ArrowLeft') {
+          this.annotations[index].x -= 1;
+        } else if (key === 'ArrowRight') {
+          this.annotations[index].x += 1;
+        }
+      }
+    }
+  }
+
+  @HostListener('document:click', ['$event'])
+  onClick(event: MouseEvent): void {
+    this.selectDivWithEditToolbar("click");
+    console.log('Selected Annotations:', this.selectedAnnotationIds);
+  }
+  // checkIfAnnotationSelected(annotationId:string):boolean{
+  //   return this.annotations.some(annotation => annotation.id === annotationId);
+  // }
+  checkIfAnnotationSelected (id: string) {
+    var isSelected = false;
+    this.selectedAnnotationIds.forEach((ant: any) => {
+      if (ant === id) {
+        isSelected =  true;
+      }
+    });
+    return isSelected;
   }
 }

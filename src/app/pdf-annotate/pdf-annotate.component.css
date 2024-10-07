@@ -11,3 +11,32 @@
   margin-top: 10px;
   position: relative;
 } */
+.pdf-container {
+  position: relative;
+}
+
+.grid-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;  /* Allows interaction with the PDF */
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(20px, 1fr)); /* Adjust number of columns */
+  grid-template-rows: repeat(auto-fill, minmax(20px, 1fr));    /* Adjust number of rows */
+}
+
+.grid-row {
+  display: flex;
+}
+
+.grid-cell {
+  /* border: 1px solid rgba(0, 0, 0, 0.8); */
+  border: 1px solid;  /* Make the grid visible with a light border */
+  /* height: 100%; */
+}
+
+.selected-annotation {
+  background-color: gray;
+}
+
+

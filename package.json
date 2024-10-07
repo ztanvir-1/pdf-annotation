@@ -18,6 +18,7 @@
     "@angular/platform-browser": "^18.2.0",
     "@angular/platform-browser-dynamic": "^18.2.0",
     "@angular/router": "^18.2.0",
+    "@types/qrcode": "^1.5.5",
     "fabric": "^6.4.2",
     "ngx-extended-pdf-viewer": "^21.4.0",
     "pdf-lib": "^1.17.1",
@@ -39,6 +40,7 @@
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
     "postcss": "^8.4.47",
+    "qrcode": "^1.5.4",
     "tailwindcss": "^3.4.12",
     "typescript": "~5.5.2"
   }
