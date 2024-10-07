@@ -154,7 +154,7 @@
           </div>
         </div>
 
-        <div style="max-height: 164px; overflow: auto;" class="mb-4">
+        <!-- <div style="max-height: 164px; overflow: auto;" class="mb-4">
           <div *ngFor="let annotation of this.annotations" style="border: 1px solid;padding: 0 10px;" class="mb-4" [ngClass]="{'selected-annotation': this.checkIfAnnotationSelected(annotation.id)}" [id]="'annotation-' + annotation.id">
             <div class="mb-4 mt-2">
               <label for="font-size" class="block font-semibold text-gray-700">Font Size:</label>
@@ -188,7 +188,59 @@
               </p>
             </div>
           </div>
+        </div> -->
+
+        <div style="max-height: 164px; overflow: auto;" class="mb-4">
+          <div *ngFor="let annotation of this.annotations" class="border border-gray-300 p-4 mb-4" [ngClass]="{'selected-annotation': this.checkIfAnnotationSelected(annotation.id)}" [id]="'annotation-' + annotation.id">
+
+            <!-- Flexbox to create two columns in a row -->
+            <div class="flex space-x-4">
+              <div class="w-1/2 flex items-center">
+                <label for="font-size" class="font-semibold text-gray-700 mr-2">Size:</label>
+                <input type="text" id="font-size" [(ngModel)]="annotation.fontsize" [disabled]="true" class="w-full bg-white text-gray-700" />
+              </div>
+
+              <div class="w-1/2 flex items-center">
+                <label for="font-color" class="font-semibold text-gray-700 mr-2">Color:</label>
+                <input type="text" id="font-color" [(ngModel)]="annotation.fontColor" [disabled]="true" class="w-full bg-white text-gray-700" />
+              </div>
+            </div>
+
+            <div class="flex space-x-4">
+              <div class="w-1/2 flex items-center">
+                <label for="alignment" class="font-semibold text-gray-700 mr-2">Horizontal:</label>
+                <input type="text" id="alignment" [(ngModel)]="annotation.alignment" [disabled]="true" class="w-full bg-white text-gray-700" />
+              </div>
+
+              <div *ngIf="annotation.type == 'logo'" class="w-1/2 flex items-center">
+                <label for="alignment" class="font-semibold text-gray-700 mr-2">Vertical:</label>
+                <input type="text" id="alignment" [(ngModel)]="annotation.verticalAlignment" [disabled]="true" class="w-full bg-white text-gray-700" />
+              </div>
+            </div>
+
+            <div class="flex space-x-4">
+              <div class="w-1/2 flex items-center">
+                <label for="x" class="font-semibold text-gray-700 mr-2">X:</label>
+                <input type="text" id="x" [ngModel]="annotation.x | number: '1.2-2'" [disabled]="true" class="w-full bg-white text-gray-700" />
+              </div>
+
+              <div class="w-1/2 flex items-center">
+                <label for="y" class="font-semibold text-gray-700 mr-2">Y:</label>
+                <input type="text" id="y" [ngModel]="annotation.y | number: '1.2-2'" [disabled]="true" class="w-full bg-white text-gray-700" />
+              </div>
+            </div>
+
+            <div class="flex space-x-4">
+              <div class="w-full flex items-center">
+                <label for="ann-id" class="font-semibold text-gray-700 mr-2">Id:</label>
+                <input type="text" id="ann-id" [(ngModel)]="annotation.id" [disabled]="true" class="w-full bg-white text-gray-700" />
+              </div>
+            </div>
+          </div>
         </div>
+
+
+
 
         <button (click)="this.getLogoFromRpCode()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
           Download Modified PDF
