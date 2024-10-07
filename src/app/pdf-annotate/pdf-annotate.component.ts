@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, HostListener, OnInit, Renderer2, RendererFactory2, ViewChild, effect} from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, HostListener, OnInit, Renderer2, RendererFactory2, ViewChild, effect} from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { EditorAnnotation, FreeTextEditorAnnotation, IPDFViewerApplication, NgxExtendedPdfViewerModule, NgxExtendedPdfViewerService, PDFDocumentProxy, PDFNotificationService } from 'ngx-extended-pdf-viewer';
+import { EditorAnnotation, FreeTextEditorAnnotation, IPDFViewerApplication, NgxExtendedPdfViewerComponent, NgxExtendedPdfViewerModule, NgxExtendedPdfViewerService, PDFDocumentProxy, PDFNotificationService } from 'ngx-extended-pdf-viewer';
 import { PDFArray, PDFDocument, PDFHexString, PDFName, PDFPage, PDFString, StandardFonts, rectangle, rgb } from 'pdf-lib'; // Import from pdf-lib
 import { NoteRpCode } from './models/noteRpCode';
 import { pdfDefaultOptions } from 'ngx-extended-pdf-viewer';
@@ -43,7 +43,7 @@ interface annotations{
   templateUrl: './pdf-annotate.component.html',
   styleUrl: './pdf-annotate.component.css'
 })
-export class PdfAnnotateComponent implements OnInit{
+export class PdfAnnotateComponent implements OnInit, AfterViewInit{
   public pdfSrc: string | ArrayBuffer | null = null; // Initially, no PDF is loaded
   public pdfDocument: PDFDocumentProxy | null = null; // Store the PDF document
   annotations: annotations[] = []; // Store annotation data
@@ -86,6 +86,9 @@ export class PdfAnnotateComponent implements OnInit{
   currentPageHeight: any;
   selectedAnnotationIds: any[] = [];
   showOptions: boolean = false;
+  isCurrentSelectionLogo:boolean = false;
+
+  @ViewChild(NgxExtendedPdfViewerComponent) private pdfViewer: NgxExtendedPdfViewerComponent | undefined;
 
   constructor(private cdr:ChangeDetectorRef, private pdfViewerService: NgxExtendedPdfViewerService, private httpClient:HttpClient, private renderer: Renderer2, private rendererFactory :RendererFactory2, private notificationService: PDFNotificationService, private qrService:QrCodeGeneratorService, private el: ElementRef) {
     this.renderer = this.rendererFactory.createRenderer(null, null);
@@ -96,6 +99,10 @@ export class PdfAnnotateComponent implements OnInit{
 
   ngOnInit(){
     // this.getLogoFromRpCode();
+  }
+
+  ngAfterViewInit(): void {
+    // this.scrollToSelectedAnnotation();
   }
 
   async getLogoFromRpCode(){
@@ -135,8 +142,26 @@ export class PdfAnnotateComponent implements OnInit{
     debugger;
     this.pdfEditorEventSource = source;
     if(source == 'ha'){
-      this.alignment = alignment;
-      this.pdfViewerService.editorFontSize = 10;
+      if(this.isCurrentSelectionLogo){
+        if(this.selectedAnnotationIds && this.selectedAnnotationIds.length > 0){
+          const annotation = this.annotations.find(x=>x.id == this.selectedAnnotationIds[0]);
+          if(annotation){
+            annotation.alignment = this.alignment;
+          }
+        }
+      }
+      else{
+        this.alignment = alignment;
+        this.pdfViewerService.editorFontSize = 10;
+      }
+    }
+    if(source == 'va'){
+      if(this.selectedAnnotationIds && this.selectedAnnotationIds.length > 0){
+        const annotation = this.annotations.find(x=>x.id == this.selectedAnnotationIds[0]);
+        if(annotation){
+          annotation.verticalAlignment = this.verticalAlignment;
+        }
+      }
     }
   }
 
@@ -234,6 +259,9 @@ export class PdfAnnotateComponent implements OnInit{
           console.log("page width:", event.source.pageDimensions[0]);
           console.log("page height:", event.source.pageDimensions[1]);
 
+          if(event.type == 'commit'){
+            this.onClick();
+          }
           if(event.type == "fontSizeChanged"){
             this.fontsize = event.value;
             console.log("font-size changed to: ", this.fontsize);
@@ -713,6 +741,7 @@ export class PdfAnnotateComponent implements OnInit{
       latestSerializedAnnotation = serializedAnnotations[serializedAnnotations.length - 1];
     if((eventSource.x!=null || eventSource.x!=undefined)  && (eventSource.y!=null || eventSource.y!=undefined)){
       if(eventSource.pageDimensions && eventSource.pageDimensions.length > 0){
+        this.onClick();
         const annotationId = eventSource.id;
         this.logoMaxWidth = eventSource.width * eventSource.pageDimensions[0];
         this.logoMaxHeight = eventSource.height * eventSource.pageDimensions[1];
@@ -962,17 +991,26 @@ export class PdfAnnotateComponent implements OnInit{
 
     if (selectedAnnotation && selectedAnnotation.length > 0) {
       selectedAnnotation.forEach((ant: any) => {
-        if ("click" === key) {
-          if (ant.id) {
-            this.selectedAnnotationIds.push(ant.id);
+        if (ant.id) {
+          this.selectedAnnotationIds.push(ant.id);
+          if ("click" !== key) {
+            this.updateCoordinatesOnKeyboardClick(ant.id, key);
           }
-        } else {
-          this.updateCoordinatesOnKeyboardClick(ant.id, key);
         }
       });
     } else {
       this.selectedAnnotationIds = [];
     }
+    if(this.selectedAnnotationIds && this.selectedAnnotationIds.length > 0){
+      const annotation = this.annotations.find(x=>x.id == this.selectedAnnotationIds[0]);
+      if(annotation && annotation.type == 'logo'){
+        this.isCurrentSelectionLogo = true;
+      }
+      else{
+        this.isCurrentSelectionLogo = false;
+      }
+    }
+    this.cdr.detectChanges();
   }
 
   updateCoordinatesOnKeyboardClick(id: string, key: string) {
@@ -993,9 +1031,10 @@ export class PdfAnnotateComponent implements OnInit{
   }
 
   @HostListener('document:click', ['$event'])
-  onClick(event: MouseEvent): void {
+  onClick(): void {
     this.selectDivWithEditToolbar("click");
     console.log('Selected Annotations:', this.selectedAnnotationIds);
+    // this.cdr.detectChanges();
   }
   // checkIfAnnotationSelected(annotationId:string):boolean{
   //   return this.annotations.some(annotation => annotation.id === annotationId);
@@ -1005,8 +1044,18 @@ export class PdfAnnotateComponent implements OnInit{
     this.selectedAnnotationIds.forEach((ant: any) => {
       if (ant === id) {
         isSelected =  true;
+        this.scrollToSelectedAnnotation();
       }
     });
     return isSelected;
+  }
+
+  // Function to scroll to the selected annotation
+  scrollToSelectedAnnotation(): void {
+    const selectedAnnotationId = this.selectedAnnotationIds[0]; // Assuming you're selecting the first one for now
+    const annotationElement = document.getElementById(`annotation-${selectedAnnotationId}`);
+    if (annotationElement) {
+      annotationElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 }
