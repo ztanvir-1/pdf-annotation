@@ -194,7 +194,7 @@
           <div *ngFor="let annotation of this.annotations" class="border border-gray-300 p-4 mb-4" [ngClass]="{'selected-annotation': this.checkIfAnnotationSelected(annotation.id)}" [id]="'annotation-' + annotation.id">
 
             <!-- Flexbox to create two columns in a row -->
-            <div class="flex space-x-4">
+            <div class="flex space-x-4" *ngIf="annotation.type!='logo' && annotation.type!='qr'">
               <div class="w-1/2 flex items-center">
                 <label for="font-size" class="font-semibold text-gray-700 mr-2">Size:</label>
                 <input type="text" id="font-size" [(ngModel)]="annotation.fontsize" [disabled]="true" class="w-full bg-white text-gray-700" />
