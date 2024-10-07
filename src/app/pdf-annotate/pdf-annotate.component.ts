@@ -8,7 +8,8 @@ import { NoteRpCode } from './models/noteRpCode';
 import { pdfDefaultOptions } from 'ngx-extended-pdf-viewer';
 import { LinkTarget } from 'ngx-extended-pdf-viewer';
 import { QrCodeGeneratorService } from '../../services/qr-service/qr-service.service';
-
+import { ToastrModule, ToastrService } from 'ngx-toastr';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 interface annotations{
   x:number,
@@ -38,7 +39,7 @@ interface annotations{
   selector: 'app-pdf-annotate',
   standalone: true,
   imports: [NgxExtendedPdfViewerModule, FormsModule, CommonModule],
-  providers: [NgxExtendedPdfViewerService],
+  providers: [NgxExtendedPdfViewerService, BrowserAnimationsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './pdf-annotate.component.html',
   styleUrl: './pdf-annotate.component.css'
@@ -90,7 +91,7 @@ export class PdfAnnotateComponent implements OnInit, AfterViewInit{
 
   @ViewChild(NgxExtendedPdfViewerComponent) private pdfViewer: NgxExtendedPdfViewerComponent | undefined;
 
-  constructor(private cdr:ChangeDetectorRef, private pdfViewerService: NgxExtendedPdfViewerService, private httpClient:HttpClient, private renderer: Renderer2, private rendererFactory :RendererFactory2, private notificationService: PDFNotificationService, private qrService:QrCodeGeneratorService, private el: ElementRef) {
+  constructor(private toastr: ToastrService, private cdr:ChangeDetectorRef, private pdfViewerService: NgxExtendedPdfViewerService, private httpClient:HttpClient, private renderer: Renderer2, private rendererFactory :RendererFactory2, private notificationService: PDFNotificationService, private qrService:QrCodeGeneratorService, private el: ElementRef) {
     this.renderer = this.rendererFactory.createRenderer(null, null);
     effect(() => {
       this.PDFViewerApplication = notificationService.onPDFJSInitSignal();
@@ -106,23 +107,31 @@ export class PdfAnnotateComponent implements OnInit, AfterViewInit{
   }
 
   async getLogoFromRpCode(){
-    this.isLoading = true;
-    this.httpClient.get<NoteRpCode>('https://crmdev.gridsystems.pk/GRCallApp/AP-test/dynamics-api/api/crm/GetLogoAnnotationByRpCodeName?rpCodeName=' + this.rpCode)
-    .subscribe({
-      next: (res) => {
-        this.isLoading = false;  // Set loading to false after getting response
-        if (res) {
-          this.annotationDetails = res;
-          this.downloadModifiedPdf();
+    if(!this.rpCode){
+      this.toastr.error('RP Code is required', '');
+    }
+    else if(this.annotations.length == 0){
+      this.toastr.error('Add at least one annotation', '');
+    }
+    else{
+      this.isLoading = true;
+      this.httpClient.get<NoteRpCode>('https://crmdev.gridsystems.pk/GRCallApp/AP-test/dynamics-api/api/crm/GetLogoAnnotationByRpCodeName?rpCodeName=' + this.rpCode)
+      .subscribe({
+        next: (res) => {
+          this.isLoading = false;  // Set loading to false after getting response
+          if (res) {
+            this.annotationDetails = res;
+            this.downloadModifiedPdf();
+          }
+          this.cdr.detectChanges();
+        },
+        error: (error) => {
+          console.error('Error fetching logo:', error);
+          this.isLoading = false;  // Always set loading to false in error case
+          this.cdr.detectChanges();
         }
-        this.cdr.detectChanges();
-      },
-      error: (error) => {
-        console.error('Error fetching logo:', error);
-        this.isLoading = false;  // Always set loading to false in error case
-        this.cdr.detectChanges();
-      }
-    });
+      });
+    }
   }
 
   onShapeChange(newShape: string): void {
