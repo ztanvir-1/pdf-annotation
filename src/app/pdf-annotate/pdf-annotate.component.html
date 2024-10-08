@@ -190,7 +190,7 @@
           </div>
         </div> -->
 
-        <div style="max-height: 164px; overflow: auto;" class="mb-4">
+        <div style="max-height: 48vh; overflow: auto;" class="mb-4">
           <div *ngFor="let annotation of this.annotations" class="border border-gray-300 p-4 mb-4" [ngClass]="{'selected-annotation': this.checkIfAnnotationSelected(annotation.id)}" [id]="'annotation-' + annotation.id">
 
             <!-- Flexbox to create two columns in a row -->
@@ -229,6 +229,30 @@
                 <input type="text" id="y" [ngModel]="annotation.y | number: '1.2-2'" [disabled]="true" class="w-full bg-white text-gray-700" />
               </div>
             </div>
+
+            <!-- to view rect values: -->
+
+            <!-- <div class="flex space-x-4">
+              <div class="w-1/2 flex items-center">
+                <label for="rect-height" class="font-semibold text-gray-700 mr-2">R-H:</label>
+                <input type="text" id="rect-height" [ngModel]="annotation.rectHeight | number: '1.2-2'" [disabled]="true" class="w-full bg-white text-gray-700" />
+              </div>
+              <div class="w-1/2 flex items-center">
+                <label for="rect-y" class="font-semibold text-gray-700 mr-2">R-Y:</label>
+                <input type="text" id="rect-y" [ngModel]="annotation.rectY | number: '1.2-2'" [disabled]="true" class="w-full bg-white text-gray-700" />
+              </div>
+            </div>
+
+            <div class="flex space-x-4">
+              <div class="w-1/2 flex items-center">
+                <label for="rect-x" class="font-semibold text-gray-700 mr-2">R-X:</label>
+                <input type="text" id="rect-x" [ngModel]="annotation.rectX | number: '1.2-2'" [disabled]="true" class="w-full bg-white text-gray-700" />
+              </div>
+              <div class="w-1/2 flex items-center">
+                <label for="rect-width" class="font-semibold text-gray-700 mr-2">R-W:</label>
+                <input type="text" id="rect-width" [ngModel]="annotation.y | number: '1.2-2'" [disabled]="true" class="w-full bg-white text-gray-700" />
+              </div>
+            </div> -->
 
             <div class="flex space-x-4">
               <div class="w-full flex items-center">

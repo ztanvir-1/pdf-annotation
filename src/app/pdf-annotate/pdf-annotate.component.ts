@@ -90,6 +90,7 @@ export class PdfAnnotateComponent implements OnInit, AfterViewInit{
   isCurrentSelectionLogo:boolean = false;
 
   @ViewChild(NgxExtendedPdfViewerComponent) private pdfViewer: NgxExtendedPdfViewerComponent | undefined;
+  transform: any;
 
   constructor(private toastr: ToastrService, private cdr:ChangeDetectorRef, private pdfViewerService: NgxExtendedPdfViewerService, private httpClient:HttpClient, private renderer: Renderer2, private rendererFactory :RendererFactory2, private notificationService: PDFNotificationService, private qrService:QrCodeGeneratorService, private el: ElementRef) {
     this.renderer = this.rendererFactory.createRenderer(null, null);
@@ -268,6 +269,11 @@ export class PdfAnnotateComponent implements OnInit, AfterViewInit{
           console.log("page width:", event.source.pageDimensions[0]);
           console.log("page height:", event.source.pageDimensions[1]);
 
+          let rect:number[] | null = [];
+          if(event.source && event.source.serialize){
+            rect = this.getCurrentAnnotationsRectangle(event.source);
+          }
+
           if(event.type == 'commit'){
             this.onClick();
           }
@@ -315,11 +321,11 @@ export class PdfAnnotateComponent implements OnInit, AfterViewInit{
             this.annotations[index].availableWidth = availableWidth;
             this.annotations[index].availableHeight = availableHeight;
 
-            if(latestSerializedAnnotation && latestSerializedAnnotation.rect.length > 0){
-              this.annotations[index].rectHeight = !this.annotations[index]?.rectHeight ? latestSerializedAnnotation.rect[0] ? latestSerializedAnnotation.rect[0] : 0 : this.annotations[index].rectHeight;
-              this.annotations[index].rectY = !this.annotations[index]?.rectY ? latestSerializedAnnotation.rect[1] ? latestSerializedAnnotation.rect[1] : 0 : this.annotations[index].rectY;
-              this.annotations[index].rectX = !this.annotations[index]?.rectX ? latestSerializedAnnotation.rect[2] ? latestSerializedAnnotation.rect[2] : 0 : this.annotations[index].rectX;
-              this.annotations[index].rectWidth = !this.annotations[index]?.rectWidth ? latestSerializedAnnotation.rect[3] ? latestSerializedAnnotation.rect[3] : 0 : this.annotations[index].rectWidth;
+            if(rect && rect.length > 0){
+              this.annotations[index].rectHeight = rect[0];
+              this.annotations[index].rectY = rect[1]
+              this.annotations[index].rectX = rect[2];
+              this.annotations[index].rectWidth = rect[3];
             }
 
             this.annotations[index].pageNumber = pageNumber
@@ -341,10 +347,10 @@ export class PdfAnnotateComponent implements OnInit, AfterViewInit{
               verticalAlignment:this.verticalAlignment,
               availableWidth: availableWidth,
               availableHeight:availableHeight,
-              rectHeight: latestSerializedAnnotation!.rect[0] ? latestSerializedAnnotation!.rect[0] : 0,
-              rectY: latestSerializedAnnotation!.rect[1] ? latestSerializedAnnotation!.rect[1] : 0,
-              rectX: latestSerializedAnnotation!.rect[2] ? latestSerializedAnnotation!.rect[2] : 0,
-              rectWidth: latestSerializedAnnotation!.rect[3] ? latestSerializedAnnotation!.rect[3] : 0,
+              rectHeight: rect && rect.length > 0 ? rect[0]: 0,
+              rectY: rect && rect.length > 0 ? rect[1]: 0,
+              rectX: rect && rect.length > 0 ? rect[2]: 0,
+              rectWidth: rect && rect.length > 0 ? rect[3]: 0,
               pageNumber: pageNumber
             });
           }
@@ -362,6 +368,10 @@ export class PdfAnnotateComponent implements OnInit, AfterViewInit{
         if(event.source.pageDimensions && event.source.pageDimensions.length > 0){
           console.log("page width:", event.source.pageDimensions[0]);
           console.log("page height:", event.source.pageDimensions[1]);
+          let rect:number[] | null = [];
+          if(event.source && event.source.serialize){
+              rect = this.getCurrentAnnotationsRectangle(event.source);
+          }
 
           const annotationId = event.source.id;
           this.logoMaxWidth = event.source.width * event.source.pageDimensions[0];
@@ -386,14 +396,13 @@ export class PdfAnnotateComponent implements OnInit, AfterViewInit{
             this.annotations[index].verticalAlignment = this.verticalAlignment;
             this.annotations[index].availableWidth = availableWidth;
             this.annotations[index].availableHeight = availableHeight;
-            if(latestSerializedAnnotation && latestSerializedAnnotation.rect.length > 0){
-              this.annotations[index].rectHeight = !this.annotations[index]?.rectHeight ? latestSerializedAnnotation.rect[0] ? latestSerializedAnnotation.rect[0] : 0 : this.annotations[index].rectHeight;
-              this.annotations[index].rectY = !this.annotations[index]?.rectY ? latestSerializedAnnotation.rect[1] ? latestSerializedAnnotation.rect[1] : 0 : this.annotations[index].rectY;
-              this.annotations[index].rectX = !this.annotations[index]?.rectX ? latestSerializedAnnotation.rect[2] ? latestSerializedAnnotation.rect[2] : 0 : this.annotations[index].rectX;
-              this.annotations[index].rectWidth = !this.annotations[index]?.rectWidth ? latestSerializedAnnotation.rect[3] ? latestSerializedAnnotation.rect[3] : 0 : this.annotations[index].rectWidth;
+            if(rect && rect.length > 0){
+              this.annotations[index].rectHeight = rect[0];
+              this.annotations[index].rectY = rect[1];
+              this.annotations[index].rectX = rect[2];
+              this.annotations[index].rectWidth = rect[3];
             }
             this.annotations[index].pageNumber = pageNumber
-
           }
         }
       }
@@ -1035,6 +1044,7 @@ export class PdfAnnotateComponent implements OnInit, AfterViewInit{
         } else if (key === 'ArrowRight') {
           this.annotations[index].x += 1;
         }
+        this.updateAnnotationRectByKeyboard(id);
       }
     }
   }
@@ -1065,6 +1075,43 @@ export class PdfAnnotateComponent implements OnInit, AfterViewInit{
     const annotationElement = document.getElementById(`annotation-${selectedAnnotationId}`);
     if (annotationElement) {
       annotationElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  getCurrentAnnotationsRectangle(eventSource:any):number[] | null{
+    if(eventSource){
+      const serializedObj = Object.values([eventSource]).filter(a => a.serialize).map(a => a.serialize()).filter(a => a?.annotationType !== undefined);
+      if(serializedObj && serializedObj.length > 0 && serializedObj[0].rect){
+        return serializedObj[0].rect as number[]
+      }
+      return null;
+    }
+    return null;
+  }
+
+  updateAnnotationRectByKeyboard(id:string){
+    const pdf: PDFDocumentProxy | undefined = this.PDFViewerApplication?.pdfDocument;
+    const annotationsList = pdf?.annotationStorage.getAll();
+
+    // Check if annotationsList exists and has any values
+    if (annotationsList && Object.keys(annotationsList).length > 0 && id) {
+        // Extract the values from the annotationsList object
+        const annotationsArray = Object.values(annotationsList);
+        const annotationFiltered = annotationsArray.filter(x=>x.id == id)
+        let rect:number[] = [];
+        if(annotationFiltered){
+          const serializedObj = annotationFiltered.map(a => a.serialize()).filter(a => a?.annotationType !== undefined);
+          if(serializedObj && serializedObj.length > 0){
+            rect = serializedObj[0].rect;
+            if(rect && rect.length > 0){
+              const annotationObject = this.annotations.filter(x=>x.id == id);
+              annotationObject[0].rectHeight = rect[0];
+              annotationObject[0].rectY = rect[1];
+              annotationObject[0].rectX = rect[2];
+              annotationObject[0].rectWidth = rect[3];
+            }
+          }
+        }
     }
   }
 }
