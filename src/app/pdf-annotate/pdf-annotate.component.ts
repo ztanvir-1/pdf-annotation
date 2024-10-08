@@ -586,7 +586,7 @@ export class PdfAnnotateComponent implements OnInit, AfterViewInit{
     }
 
     let image;
-    if (this.getImageTypeFromPath(this.annotationDetails.fileName) === "png") {
+    if (this.getImageTypeFromPath(this.annotationDetails.fileName) === "png" || type == "qr") {
       image = await pdfDoc.embedPng(imageBytes); // Embed PNG image
     } else {
       image = await pdfDoc.embedJpg(imageBytes); // Embed JPG image
