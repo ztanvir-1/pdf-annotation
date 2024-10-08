@@ -190,7 +190,7 @@
           </div>
         </div> -->
 
-        <div style="max-height: 48vh; overflow: auto;" class="mb-4">
+        <div id="dynamicDiv" style="overflow: auto;" class="mb-4">
           <div *ngFor="let annotation of this.annotations" class="border border-gray-300 p-4 mb-4" [ngClass]="{'selected-annotation': this.checkIfAnnotationSelected(annotation.id)}" [id]="'annotation-' + annotation.id">
 
             <!-- Flexbox to create two columns in a row -->

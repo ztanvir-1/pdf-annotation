@@ -39,4 +39,15 @@
   border: 5px solid red !important;
 }
 
+@media (min-height: 970px) {
+  #dynamicDiv {
+    max-height: 48vh;
+  }
+}
+
+@media (max-height: 969px) {
+  #dynamicDiv {
+    max-height: 167px;
+  }
+}
 
