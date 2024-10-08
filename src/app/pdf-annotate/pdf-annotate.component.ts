@@ -430,7 +430,7 @@ export class PdfAnnotateComponent implements OnInit, AfterViewInit{
         textToDraw = this.annotationDetails.partnerUrl;
       }
       else if("<name>" == annotation.text.toLowerCase()){
-        textToDraw = "this is going be partner's name";
+        textToDraw = this.annotationDetails.partnerName;
       }
       else{
         textToDraw = annotation.text;
