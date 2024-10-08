@@ -1023,8 +1023,11 @@ export class PdfAnnotateComponent implements OnInit, AfterViewInit{
       const annotation = this.annotations.find(x=>x.id == this.selectedAnnotationIds[0]);
       if(annotation && annotation.type == 'logo'){
         this.isCurrentSelectionLogo = true;
+        this.verticalAlignment = annotation?.verticalAlignment;
+        this.alignment = annotation?.alignment || "left";
       }
       else{
+        this.alignment = annotation?.alignment || "left";
         this.isCurrentSelectionLogo = false;
       }
     }
